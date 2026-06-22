@@ -1,0 +1,43 @@
+name: Generate signing key (run once)
+
+# Run this ONCE, manually, from the Actions tab. It creates your fixed signing
+# key and prints it as base64 text for you to copy into a secret.
+# The keystore is protected by your password (a secret), which is never printed,
+# so the printed text is useless to anyone without that password.
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Create keystore and print base64
+        env:
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+          ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KS_PASS" ] || [ -z "$KEY_PASS" ] || [ -z "$ALIAS" ]; then
+            echo "ERROR: Add the secrets KEYSTORE_PASSWORD, KEY_PASSWORD and KEY_ALIAS first."
+            exit 1
+          fi
+          keytool -genkeypair -v \
+            -keystore upi.jks \
+            -alias "$ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+            -dname "CN=UPI Expense Tracker, OU=Personal, O=Personal, L=NA, ST=NA, C=IN"
+          echo ""
+          echo "================ COPY EVERYTHING BETWEEN THE LINES ================"
+          echo "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
+          base64 -w0 upi.jks
+          echo ""
+          echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+          echo "=================================================================="
+          echo "Paste the above into a new secret named SIGNING_KEYSTORE_BASE64"

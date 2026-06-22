@@ -81,3 +81,58 @@ changed) and I can adjust the patterns.
 - This produces a **debug** APK, which is fine for personal use. It isn't
   published to the Play Store.
 - `minSdk` is 26 (Android 8.0+). Your phone almost certainly qualifies.
+
+
+---
+
+## One-time: stable signing (so updates keep your data)
+
+By default each cloud build is signed with a different key, so a new APK won't
+install over the old one (you'd have to uninstall, losing data). Set this up
+once and every future update installs cleanly and keeps your data.
+
+Everything stays private: your signing key lives in encrypted GitHub **secrets**,
+never in the code and never shown in logs.
+
+### Step 1 — Add three secrets
+In your repo: **Settings → Secrets and variables → Actions → New repository secret**.
+Add these three (pick your own values; remember the passwords):
+
+| Secret name        | Example value        | Notes                          |
+|--------------------|----------------------|--------------------------------|
+| `KEYSTORE_PASSWORD`| a strong password    | keep it safe, you can't recover it |
+| `KEY_PASSWORD`     | same or another one  | can be the same as above       |
+| `KEY_ALIAS`        | `upikey`             | any short name                 |
+
+### Step 2 — Generate the key (run once)
+Go to **Actions → "Generate signing key (run once)" → Run workflow**.
+When it finishes, open the run's log and find the block:
+
+```
+================ COPY EVERYTHING BETWEEN THE LINES ================
+vvvvv...
+<a long line of letters/numbers>
+^^^^^...
+```
+
+Copy that long base64 line.
+
+### Step 3 — Save it as the 4th secret
+Back in **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret name                | Value                          |
+|----------------------------|--------------------------------|
+| `SIGNING_KEYSTORE_BASE64`  | the long line you just copied  |
+
+### Step 4 — Rebuild
+Go to **Actions → "Build APK" → Run workflow** (or push any change). The APK is
+now signed with your fixed key.
+
+> One last uninstall: the first signed build has a different key than the
+> currently installed (debug-signed) app, so uninstall the app once and install
+> this signed build. **After that, all future updates install over the top and
+> keep your data.**
+
+You can delete the "Generate signing key" workflow run afterwards if you like.
+The keystore base64 it printed is password-protected and useless without your
+`KEYSTORE_PASSWORD`, which was never printed.

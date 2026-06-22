@@ -10,6 +10,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # These come from repo secrets. When present, the build is signed with
+      # your fixed key so app updates install over the old version and keep
+      # your data. When absent, the normal debug key is used.
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -19,6 +27,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Decode signing keystore
+        if: ${{ env.SIGNING_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upi.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/upi.jks" >> "$GITHUB_ENV"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
