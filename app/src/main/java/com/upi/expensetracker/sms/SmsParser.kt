@@ -28,9 +28,10 @@ object SmsParser {
         "credited", "credit", "received", "deposited", "added to"
     )
 
-    // Strong signal this is a banking/UPI message rather than a random text.
+    // Strong signal this is a banking/UPI/wallet message rather than a random text.
     private val bankSignals = listOf(
-        "upi", "a/c", "acct", "account", "bank", "vpa", "ref no", "ref:", "txn", "imps", "neft"
+        "upi", "a/c", "acct", "account", "bank", "vpa", "ref no", "ref:", "txn",
+        "imps", "neft", "wallet", "card", "avl bal", "pluxee", "meal card"
     )
 
     // Hard "ignore this" list, even if it contains a number (OTPs, etc.).
@@ -52,6 +53,12 @@ object SmsParser {
     // Source after "from" (for credits) e.g. "from EMPLOYER PVT LTD".
     private val fromRegex = Regex(
         "from\\s+([a-z0-9@._\\-]+(?:\\s[a-z0-9._\\-]+){0,2})",
+        RegexOption.IGNORE_CASE
+    )
+
+    // Merchant after "at" (card / wallet / POS) e.g. "at HKGN PARATH . Avl bal".
+    private val atRegex = Regex(
+        "\\bat\\s+([a-z0-9][a-z0-9 &._'\\-]*?)\\s*(?:\\.|\\bavl\\b|$)",
         RegexOption.IGNORE_CASE
     )
 
@@ -77,13 +84,13 @@ object SmsParser {
         if (amount <= 0.0) return null
 
         val matcher = if (type == TxnType.CREDIT) fromRegex else toRegex
-        val payee = matcher.find(body)
-            ?.groupValues?.get(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
+        val payeeRaw = matcher.find(body)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() }
+            ?: atRegex.find(body)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() }
+
+        val payee = payeeRaw?.let { cleanPayee(it) }
             ?: if (type == TxnType.CREDIT) "Unknown source" else "Unknown"
 
-        return ParsedTxn(amount = amount, payee = cleanPayee(payee), type = type)
+        return ParsedTxn(amount = amount, payee = payee, type = type)
     }
 
     private fun cleanPayee(raw: String): String {
