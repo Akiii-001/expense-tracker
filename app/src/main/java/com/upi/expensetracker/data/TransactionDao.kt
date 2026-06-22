@@ -73,4 +73,7 @@ interface TransactionDao {
 
     @Query("SELECT openingBalance FROM monthly_settings WHERE monthKey = :monthKey")
     fun observeOpeningBalance(monthKey: String): Flow<Double?>
+
+    @Query("SELECT * FROM monthly_settings")
+    fun observeAllSettings(): Flow<List<MonthlySetting>>
 }

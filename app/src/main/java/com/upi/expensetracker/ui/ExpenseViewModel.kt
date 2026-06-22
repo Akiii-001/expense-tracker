@@ -12,7 +12,7 @@ import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -27,9 +27,42 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val transactions = dao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val openingBalance = dao.observeOpeningBalance(monthKey)
-        .map { it ?: 0.0 }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+    /**
+     * Opening balance for the current month.
+     * - If you've explicitly set it for this month, that value is used.
+     * - Otherwise it auto-carries: it's the closing balance carried forward,
+     *   i.e. the latest explicit opening you set in an earlier month plus every
+     *   credit minus debit since then (or simply the net of all past
+     *   transactions if you never set one).
+     * You can always edit it to correct the exact amount.
+     */
+    val openingBalance = combine(
+        dao.observeAll(),
+        dao.observeAllSettings()
+    ) { txns, settings ->
+        computeOpening(txns, settings)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    private fun computeOpening(
+        txns: List<Transaction>,
+        settings: List<MonthlySetting>
+    ): Double {
+        val curStart = monthStart
+        val applicable = settings.filter { it.monthKey <= monthKey }.maxByOrNull { it.monthKey }
+        return when {
+            applicable == null ->
+                netBetween(txns, Long.MIN_VALUE, curStart)
+            applicable.monthKey == monthKey ->
+                applicable.openingBalance
+            else ->
+                applicable.openingBalance +
+                    netBetween(txns, TimeRanges.startOfMonthKey(applicable.monthKey), curStart)
+        }
+    }
+
+    private fun netBetween(txns: List<Transaction>, from: Long, until: Long): Double =
+        txns.filter { it.timestamp in from until until }
+            .sumOf { if (it.type == TxnType.CREDIT) it.amount else -it.amount }
 
     val customCategories = dao.observeCustomCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CustomCategory>())

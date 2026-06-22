@@ -20,7 +20,7 @@ object SmsParser {
 
     // Money LEFT the account.
     private val debitKeywords = listOf(
-        "debited", "debit", "spent", "paid", "sent to", "withdrawn", "purchase"
+        "debited", "debit", "spent", "sent", "paid", "withdrawn", "purchase"
     )
 
     // Money CAME IN to the account.

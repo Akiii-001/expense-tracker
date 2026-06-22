@@ -259,8 +259,8 @@ fun OpeningBalanceDialog(
         text = {
             Column {
                 Text(
-                    "Money you started this month with (e.g. left over from last month). " +
-                        "It's added to your monthly balance.",
+                    "Carried over from last month automatically. Edit it here if " +
+                        "the exact amount is different.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

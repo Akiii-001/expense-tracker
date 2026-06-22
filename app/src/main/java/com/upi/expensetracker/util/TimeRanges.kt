@@ -13,6 +13,18 @@ object TimeRanges {
         return "%04d-%02d".format(year, month)
     }
 
+    /** Start-of-month timestamp for a "yyyy-MM" key. */
+    fun startOfMonthKey(monthKey: String): Long {
+        val parts = monthKey.split("-")
+        val year = parts.getOrNull(0)?.toIntOrNull() ?: return 0L
+        val month = parts.getOrNull(1)?.toIntOrNull() ?: return 0L
+        val cal = Calendar.getInstance().apply {
+            clear()
+            set(year, month - 1, 1, 0, 0, 0)
+        }
+        return cal.timeInMillis
+    }
+
     fun startOfWeek(): Long {
         val cal = Calendar.getInstance().apply {
             firstDayOfWeek = Calendar.MONDAY
