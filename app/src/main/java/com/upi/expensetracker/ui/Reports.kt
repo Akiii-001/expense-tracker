@@ -40,6 +40,7 @@ fun ReportsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val monthIncome by viewModel.monthIncome.collectAsState()
     val weekByCat by viewModel.weekByCategory.collectAsState()
     val monthByCat by viewModel.monthByCategory.collectAsState()
+    val opening by viewModel.openingBalance.collectAsState()
 
     Column(
         modifier = modifier
@@ -47,15 +48,16 @@ fun ReportsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        ReportCard("This week", weekIncome, weekSpend, weekByCat)
+        ReportCard("This week", 0.0, weekIncome, weekSpend, weekByCat)
         Spacer(Modifier.height(16.dp))
-        ReportCard("This month", monthIncome, monthSpend, monthByCat)
+        ReportCard("This month", opening, monthIncome, monthSpend, monthByCat)
     }
 }
 
 @Composable
 private fun ReportCard(
     title: String,
+    opening: Double,
     income: Double,
     spend: Double,
     spendByCategory: List<CategoryTotal>
@@ -71,7 +73,15 @@ private fun ReportCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Pill("Received", money(income), IncomeGreen, Modifier.weight(1f))
                 Pill("Spent", money(spend), SpendRed, Modifier.weight(1f))
-                Pill("Balance", money(income - spend), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+                Pill("Balance", money(opening + income - spend), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+            }
+            if (opening != 0.0) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Includes opening balance of ${money(opening)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(Modifier.height(20.dp))

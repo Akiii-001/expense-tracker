@@ -65,4 +65,12 @@ interface TransactionDao {
 
     @Query("SELECT * FROM custom_categories ORDER BY name")
     fun observeCustomCategories(): Flow<List<CustomCategory>>
+
+    // Opening balance ------------------------------------------------------
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setMonthlySetting(setting: MonthlySetting)
+
+    @Query("SELECT openingBalance FROM monthly_settings WHERE monthKey = :monthKey")
+    fun observeOpeningBalance(monthKey: String): Flow<Double?>
 }

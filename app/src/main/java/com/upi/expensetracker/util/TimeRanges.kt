@@ -5,6 +5,14 @@ import java.util.Calendar
 /** Helpers for the start-of-week and start-of-month timestamps. */
 object TimeRanges {
 
+    /** Current month as "yyyy-MM", used to key per-month settings. */
+    fun currentMonthKey(): String {
+        val cal = Calendar.getInstance()
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        return "%04d-%02d".format(year, month)
+    }
+
     fun startOfWeek(): Long {
         val cal = Calendar.getInstance().apply {
             firstDayOfWeek = Calendar.MONDAY

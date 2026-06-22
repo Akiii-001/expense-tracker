@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Card
@@ -99,9 +100,11 @@ fun HomeScreen(
     val monthSpend by viewModel.monthSpend.collectAsState()
     val monthIncome by viewModel.monthIncome.collectAsState()
     val weekSpend by viewModel.weekSpend.collectAsState()
+    val openingBalance by viewModel.openingBalance.collectAsState()
 
     var editing by remember { mutableStateOf<Transaction?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    var showOpening by remember { mutableStateOf(false) }
 
     LaunchedEffect(focusTransactionId, transactions) {
         if (focusTransactionId > 0 && editing == null) {
@@ -115,7 +118,13 @@ fun HomeScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp)
         ) {
             item {
-                BalanceCard(income = monthIncome, spend = monthSpend, weekSpend = weekSpend)
+                BalanceCard(
+                    opening = openingBalance,
+                    income = monthIncome,
+                    spend = monthSpend,
+                    weekSpend = weekSpend,
+                    onEditOpening = { showOpening = true }
+                )
                 Spacer(Modifier.height(20.dp))
                 Text(
                     "Recent activity",
@@ -168,26 +177,61 @@ fun HomeScreen(
             }
         )
     }
+
+    if (showOpening) {
+        OpeningBalanceDialog(
+            current = openingBalance,
+            onDismiss = { showOpening = false },
+            onSave = { value ->
+                viewModel.setOpeningBalance(value)
+                showOpening = false
+            }
+        )
+    }
 }
 
 @Composable
-private fun BalanceCard(income: Double, spend: Double, weekSpend: Double) {
+private fun BalanceCard(
+    opening: Double,
+    income: Double,
+    spend: Double,
+    weekSpend: Double,
+    onEditOpening: () -> Unit
+) {
+    val balance = opening + income - spend
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Balance this month",
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = "Set opening balance",
+                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                    modifier = Modifier.size(20.dp).clickable { onEditOpening() }
+                )
+            }
             Text(
-                "Balance this month",
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.labelLarge
-            )
-            Text(
-                money(income - spend),
+                money(balance),
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Opening: ${money(opening)}",
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

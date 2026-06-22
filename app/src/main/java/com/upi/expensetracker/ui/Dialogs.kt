@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -238,4 +239,41 @@ fun EditTransactionSheet(
             }
         }
     }
+}
+
+@Composable
+fun OpeningBalanceDialog(
+    current: Double,
+    onDismiss: () -> Unit,
+    onSave: (Double) -> Unit
+) {
+    var text by remember { mutableStateOf(if (current != 0.0) current.toLong().toString() else "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onSave(text.toDoubleOrNull() ?: 0.0) }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Opening balance") },
+        text = {
+            Column {
+                Text(
+                    "Money you started this month with (e.g. left over from last month). " +
+                        "It's added to your monthly balance.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Amount (\u20B9)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
 }

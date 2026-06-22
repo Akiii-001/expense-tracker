@@ -7,10 +7,12 @@ import com.upi.expensetracker.data.AppDatabase
 import com.upi.expensetracker.data.Categories
 import com.upi.expensetracker.data.CategoryTotal
 import com.upi.expensetracker.data.CustomCategory
+import com.upi.expensetracker.data.MonthlySetting
 import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -20,9 +22,14 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
 
     private val weekStart = TimeRanges.startOfWeek()
     private val monthStart = TimeRanges.startOfMonth()
+    private val monthKey = TimeRanges.currentMonthKey()
 
     val transactions = dao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val openingBalance = dao.observeOpeningBalance(monthKey)
+        .map { it ?: 0.0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val customCategories = dao.observeCustomCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CustomCategory>())
@@ -68,6 +75,12 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch { dao.delete(transaction) }
+    }
+
+    fun setOpeningBalance(value: Double) {
+        viewModelScope.launch {
+            dao.setMonthlySetting(MonthlySetting(monthKey = monthKey, openingBalance = value))
+        }
     }
 
     /** Persist a user-typed category so it stays available in the future. */
