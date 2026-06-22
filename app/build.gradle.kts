@@ -17,8 +17,28 @@ android {
         versionName = "1.0"
     }
 
+    // Stable signing (optional): when the CI secrets are configured, builds are
+    // signed with YOUR fixed key so app updates install over the old version
+    // and KEEP your data. Without the secrets, the normal debug key is used
+    // (fine to start with; updating then requires uninstall + reinstall).
+    val ksFile: String? = System.getenv("KEYSTORE_FILE")
+    signingConfigs {
+        if (ksFile != null) {
+            create("stable") {
+                storeFile = file(ksFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            if (ksFile != null) signingConfig = signingConfigs.getByName("stable")
+        }
         release {
+            if (ksFile != null) signingConfig = signingConfigs.getByName("stable")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

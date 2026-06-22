@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.upi.expensetracker.ui.theme.AppTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -34,7 +35,7 @@ class MainActivity : ComponentActivity() {
         val focusTxnId = intent.getLongExtra(EXTRA_TXN_ID, -1L)
 
         setContent {
-            MaterialTheme {
+            AppTheme {
                 Surface(modifier = Modifier, color = MaterialTheme.colorScheme.background) {
                     AppRoot(viewModel = viewModel, focusTransactionId = focusTxnId)
                 }

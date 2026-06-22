@@ -23,6 +23,13 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<Transaction>>
 
+    // Distinct categories the user has actually used (for showing custom ones).
+    @Query(
+        "SELECT DISTINCT category FROM transactions " +
+            "WHERE category != '${Categories.UNCATEGORIZED}' ORDER BY category"
+    )
+    fun observeUsedCategories(): Flow<List<String>>
+
     @Query(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
             "WHERE timestamp >= :since AND type = :type"

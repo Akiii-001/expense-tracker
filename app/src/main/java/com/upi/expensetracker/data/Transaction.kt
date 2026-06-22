@@ -33,13 +33,21 @@ object Categories {
 
     /** Categories shown for money you spend. */
     val EXPENSE = listOf(
-        "Travel",
         "Food",
         "Groceries",
+        "Travel",
+        "Transport",
+        "Fuel",
         "Shopping",
         "Bills",
+        "Rent",
         "Entertainment",
+        "Subscriptions",
         "Health",
+        "Education",
+        "Personal Care",
+        "Gifts",
+        "Investments",
         "Other"
     )
 
@@ -49,6 +57,7 @@ object Categories {
         "Refund",
         "Cashback",
         "Transfer In",
+        "Interest",
         "Other Income"
     )
 

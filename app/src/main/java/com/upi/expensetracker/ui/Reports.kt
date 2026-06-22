@@ -1,23 +1,36 @@
 package com.upi.expensetracker.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.upi.expensetracker.data.CategoryTotal
+import com.upi.expensetracker.ui.theme.IncomeGreen
+import com.upi.expensetracker.ui.theme.SpendRed
 
 @Composable
 fun ReportsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
@@ -35,6 +48,7 @@ fun ReportsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             .padding(16.dp)
     ) {
         ReportCard("This week", weekIncome, weekSpend, weekByCat)
+        Spacer(Modifier.height(16.dp))
         ReportCard("This month", monthIncome, monthSpend, monthByCat)
     }
 }
@@ -46,32 +60,32 @@ private fun ReportCard(
     spend: Double,
     spendByCategory: List<CategoryTotal>
 ) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            SummaryLine("Received", money(income))
-            SummaryLine("Spent", money(spend))
-            SummaryLine("Balance", money(income - spend))
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Pill("Received", money(income), IncomeGreen, Modifier.weight(1f))
+                Pill("Spent", money(spend), SpendRed, Modifier.weight(1f))
+                Pill("Balance", money(income - spend), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+            }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            Text("Spending by category", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(20.dp))
+            Text("Where it went", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
 
             if (spendByCategory.isEmpty()) {
                 Text(
                     "No spends recorded yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 spendByCategory.forEach { row ->
-                    val pct = if (spend > 0) (row.total / spend * 100).toInt() else 0
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${row.category}  ($pct%)")
-                        Text(money(row.total))
-                    }
+                    CategoryBar(row.category, row.total, spend)
                 }
             }
         }
@@ -79,12 +93,59 @@ private fun ReportCard(
 }
 
 @Composable
-private fun SummaryLine(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+private fun Pill(label: String, value: String, accent: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(accent.copy(alpha = 0.12f))
+            .padding(vertical = 10.dp, horizontal = 8.dp)
     ) {
-        Text(label)
-        Text(value, fontWeight = FontWeight.SemiBold)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = accent)
+        }
+    }
+}
+
+@Composable
+private fun CategoryBar(category: String, amount: Double, total: Double) {
+    val fraction = if (total > 0) (amount / total).toFloat().coerceIn(0f, 1f) else 0f
+    val pct = (fraction * 100).toInt()
+    val style = CategoryStyle.of(category)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(style.color.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(style.icon, contentDescription = null, tint = style.color, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(category, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text("${money(amount)}  ($pct%)", style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(4.dp))
+            // Progress track
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(style.color)
+                )
+            }
+        }
     }
 }

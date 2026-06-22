@@ -22,36 +22,38 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val transactions = dao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Spends
+    val usedCategories = dao.observeUsedCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val weekSpend = dao.observeTotalSince(weekStart, TxnType.DEBIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     val monthSpend = dao.observeTotalSince(monthStart, TxnType.DEBIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    // Income
     val weekIncome = dao.observeTotalSince(weekStart, TxnType.CREDIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     val monthIncome = dao.observeTotalSince(monthStart, TxnType.CREDIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    // Spend breakdown by category
     val weekByCategory = dao.observeCategoryTotalsSince(weekStart, TxnType.DEBIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CategoryTotal>())
     val monthByCategory = dao.observeCategoryTotalsSince(monthStart, TxnType.DEBIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CategoryTotal>())
 
-    fun setCategory(transaction: Transaction, category: String) {
+    /** Update category and/or note (the "what for") of an existing transaction. */
+    fun updateTransaction(transaction: Transaction, category: String, note: String) {
         viewModelScope.launch {
-            dao.update(transaction.copy(category = category))
+            dao.update(transaction.copy(category = category, note = note))
         }
     }
 
-    fun addManual(amount: Double, payee: String, type: String, category: String) {
+    fun addManual(amount: Double, payee: String, note: String, type: String, category: String) {
         viewModelScope.launch {
             dao.insert(
                 Transaction(
                     amount = amount,
-                    payee = payee.ifBlank { if (type == TxnType.CREDIT) "Income" else "Manual entry" },
+                    payee = payee.ifBlank { if (type == TxnType.CREDIT) "Income" else "Expense" },
+                    note = note,
                     type = type,
                     category = category,
                     timestamp = System.currentTimeMillis()
