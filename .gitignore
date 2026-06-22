@@ -1,0 +1,13 @@
+# Gradle / build
+.gradle/
+build/
+app/build/
+local.properties
+
+# Android Studio / IntelliJ (in case you ever open it in an IDE)
+*.iml
+.idea/
+
+# OS noise
+.DS_Store
+Thumbs.db

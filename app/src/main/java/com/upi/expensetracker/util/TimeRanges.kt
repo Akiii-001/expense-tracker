@@ -1,0 +1,30 @@
+package com.upi.expensetracker.util
+
+import java.util.Calendar
+
+/** Helpers for the start-of-week and start-of-month timestamps. */
+object TimeRanges {
+
+    fun startOfWeek(): Long {
+        val cal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        }
+        return cal.atStartOfDay()
+    }
+
+    fun startOfMonth(): Long {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        return cal.atStartOfDay()
+    }
+
+    private fun Calendar.atStartOfDay(): Long {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        return timeInMillis
+    }
+}
