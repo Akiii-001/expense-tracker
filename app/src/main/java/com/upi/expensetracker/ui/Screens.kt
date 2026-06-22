@@ -95,7 +95,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val transactions by viewModel.transactions.collectAsState()
-    val usedCategories by viewModel.usedCategories.collectAsState()
+    val customCategories by viewModel.customCategories.collectAsState()
     val monthSpend by viewModel.monthSpend.collectAsState()
     val monthIncome by viewModel.monthIncome.collectAsState()
     val weekSpend by viewModel.weekSpend.collectAsState()
@@ -145,10 +145,14 @@ fun HomeScreen(
     editing?.let { txn ->
         EditTransactionSheet(
             transaction = txn,
-            usedCategories = usedCategories,
+            customCategories = customCategories,
             onDismiss = { editing = null },
             onSave = { category, note ->
                 viewModel.updateTransaction(txn, category, note)
+                editing = null
+            },
+            onDelete = {
+                viewModel.deleteTransaction(txn)
                 editing = null
             }
         )
@@ -156,7 +160,7 @@ fun HomeScreen(
 
     if (showAdd) {
         AddTransactionSheet(
-            usedCategories = usedCategories,
+            customCategories = customCategories,
             onDismiss = { showAdd = false },
             onAdd = { amount, payee, note, type, category ->
                 viewModel.addManual(amount, payee, note, type, category)

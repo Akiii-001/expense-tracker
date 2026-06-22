@@ -1,7 +1,9 @@
 package com.upi.expensetracker.data
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -20,15 +22,11 @@ interface TransactionDao {
     @Update
     suspend fun update(transaction: Transaction)
 
+    @Delete
+    suspend fun delete(transaction: Transaction)
+
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<Transaction>>
-
-    // Distinct categories the user has actually used (for showing custom ones).
-    @Query(
-        "SELECT DISTINCT category FROM transactions " +
-            "WHERE category != '${Categories.UNCATEGORIZED}' ORDER BY category"
-    )
-    fun observeUsedCategories(): Flow<List<String>>
 
     @Query(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
@@ -59,4 +57,12 @@ interface TransactionDao {
             "AND category != '${Categories.UNCATEGORIZED}'"
     )
     suspend fun distinctCategoriesForPayee(payee: String): Int
+
+    // Custom categories ----------------------------------------------------
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCustomCategory(category: CustomCategory)
+
+    @Query("SELECT * FROM custom_categories ORDER BY name")
+    fun observeCustomCategories(): Flow<List<CustomCategory>>
 }

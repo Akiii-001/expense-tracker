@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -22,6 +25,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,13 +38,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.upi.expensetracker.data.Categories
+import com.upi.expensetracker.data.CustomCategory
 import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 
-/** Predefined categories for the type, plus any custom ones the user has used. */
-private fun categoriesFor(type: String, used: List<String>): List<String> {
+/** Predefined categories for the type, plus any custom ones the user has saved. */
+private fun categoriesFor(type: String, custom: List<CustomCategory>): List<String> {
     val base = Categories.forType(type)
-    val extras = used.filter { it !in base && it != Categories.UNCATEGORIZED && it != Categories.INCOME }
+    val extras = custom.filter { it.type == type }.map { it.name }.filter { it !in base }
     return base + extras
 }
 
@@ -87,7 +92,7 @@ private fun CategoryChips(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionSheet(
-    usedCategories: List<String>,
+    customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
     onAdd: (Double, String, String, String, String) -> Unit
 ) {
@@ -97,9 +102,8 @@ fun AddTransactionSheet(
     var note by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TxnType.DEBIT) }
 
-    val options = categoriesFor(type, usedCategories)
+    val options = categoriesFor(type, customCategories)
     var category by remember { mutableStateOf(options.first()) }
-    if (category !in options) category = options.first()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -114,12 +118,12 @@ fun AddTransactionSheet(
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     selected = type == TxnType.DEBIT,
-                    onClick = { type = TxnType.DEBIT; category = categoriesFor(TxnType.DEBIT, usedCategories).first() },
+                    onClick = { type = TxnType.DEBIT; category = categoriesFor(TxnType.DEBIT, customCategories).first() },
                     shape = SegmentedButtonDefaults.itemShape(0, 2)
                 ) { Text("Spent") }
                 SegmentedButton(
                     selected = type == TxnType.CREDIT,
-                    onClick = { type = TxnType.CREDIT; category = categoriesFor(TxnType.CREDIT, usedCategories).first() },
+                    onClick = { type = TxnType.CREDIT; category = categoriesFor(TxnType.CREDIT, customCategories).first() },
                     shape = SegmentedButtonDefaults.itemShape(1, 2)
                 ) { Text("Received") }
             }
@@ -170,14 +174,15 @@ fun AddTransactionSheet(
 @Composable
 fun EditTransactionSheet(
     transaction: Transaction,
-    usedCategories: List<String>,
+    customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+    onSave: (String, String) -> Unit,
+    onDelete: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isCredit = transaction.type == TxnType.CREDIT
     var note by remember { mutableStateOf(transaction.note) }
-    val options = categoriesFor(transaction.type, usedCategories)
+    val options = categoriesFor(transaction.type, customCategories)
     var category by remember {
         mutableStateOf(if (transaction.category in options) transaction.category else options.first())
     }
@@ -221,6 +226,16 @@ fun EditTransactionSheet(
                 onClick = { onSave(category, note) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.Delete, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Delete this transaction")
+            }
         }
     }
 }
