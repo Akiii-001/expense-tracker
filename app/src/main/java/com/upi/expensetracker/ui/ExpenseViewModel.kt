@@ -18,7 +18,6 @@ import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -32,7 +31,8 @@ data class ReportData(
     val income: Double = 0.0,
     val spend: Double = 0.0,
     val byCategory: List<CategoryTotal> = emptyList(),
-    val budgets: Map<String, Double> = emptyMap()
+    val budgets: Map<String, Double> = emptyMap(),
+    val isRange: Boolean = false
 )
 
 class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
@@ -63,42 +63,86 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val monthIncome = dao.observeTotalSince(monthStart, TxnType.CREDIT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    // -------- Reports with month history --------
+    // -------- Reports: month view OR custom date range --------
 
-    private val reportOffset = MutableStateFlow(0)
-    val reportMonthOffset = reportOffset.asStateFlow()
+    sealed interface ReportSelection {
+        data class Month(val offset: Int) : ReportSelection
+        data class Range(val start: Long, val endExclusive: Long, val label: String) : ReportSelection
+    }
+
+    private val selection = MutableStateFlow<ReportSelection>(ReportSelection.Month(0))
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val reportData: kotlinx.coroutines.flow.StateFlow<ReportData> =
-        reportOffset.flatMapLatest { offset ->
-            val (start, end) = TimeRanges.monthRange(offset)
-            val key = TimeRanges.monthKeyForOffset(offset)
+        selection.flatMapLatest { sel ->
+            val start: Long
+            val end: Long
+            val label: String
+            val offset: Int
+            val isRange: Boolean
+            when (sel) {
+                is ReportSelection.Month -> {
+                    val range = TimeRanges.monthRange(sel.offset)
+                    start = range.first; end = range.second
+                    label = TimeRanges.monthLabel(sel.offset)
+                    offset = sel.offset
+                    isRange = false
+                }
+                is ReportSelection.Range -> {
+                    start = sel.start; end = sel.endExclusive
+                    label = sel.label
+                    offset = 0
+                    isRange = true
+                }
+            }
+            val key = if (sel is ReportSelection.Month) TimeRanges.monthKeyForOffset(sel.offset) else ""
             combine(
                 dao.observeTotalBetween(start, end, TxnType.CREDIT),
                 dao.observeTotalBetween(start, end, TxnType.DEBIT),
                 dao.observeCategoryTotalsBetween(start, end, TxnType.DEBIT),
                 dao.observeBudgets(),
                 combine(dao.observeAll(), dao.observeAllSettings()) { txns, settings ->
-                    computeOpeningFor(key, start, txns, settings)
+                    if (isRange) 0.0 else computeOpeningFor(key, start, txns, settings)
                 }
             ) { income, spend, cats, budgetList, opening ->
                 ReportData(
                     offset = offset,
-                    label = TimeRanges.monthLabel(offset),
+                    label = label,
                     opening = opening,
                     income = income,
                     spend = spend,
                     byCategory = cats,
-                    budgets = budgetList.associate { it.category to it.amount }
+                    budgets = budgetList.associate { it.category to it.amount },
+                    isRange = isRange
                 )
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportData(label = TimeRanges.monthLabel(0)))
 
     fun changeReportMonth(delta: Int) {
-        // Don't allow going into the future beyond the current month.
-        val next = (reportOffset.value + delta).coerceAtMost(0)
-        reportOffset.value = next
+        val currentOffset = (selection.value as? ReportSelection.Month)?.offset ?: 0
+        selection.value = ReportSelection.Month((currentOffset + delta).coerceAtMost(0))
     }
+
+    fun showMonthView() {
+        selection.value = ReportSelection.Month(0)
+    }
+
+    fun setCustomRange(startMillis: Long, endMillis: Long) {
+        // endMillis is the start-of-day of the chosen end date; make it inclusive.
+        val endExclusive = endMillis + 24L * 60 * 60 * 1000
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        val label = "${fmt.format(java.util.Date(startMillis))} - ${fmt.format(java.util.Date(endMillis))}"
+        selection.value = ReportSelection.Range(startMillis, endExclusive, label)
+    }
+
+    private fun currentRange(): Triple<Long, Long, String> =
+        when (val sel = selection.value) {
+            is ReportSelection.Month -> {
+                val r = TimeRanges.monthRange(sel.offset)
+                Triple(r.first, r.second, TimeRanges.monthLabel(sel.offset))
+            }
+            is ReportSelection.Range -> Triple(sel.start, sel.endExclusive, sel.label)
+        }
 
     // -------- Mutations --------
 
@@ -144,11 +188,10 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Build a CSV or PDF for a month and return a shareable Uri (or null). */
-    suspend fun export(offset: Int, pdf: Boolean): Uri? {
-        val (start, end) = TimeRanges.monthRange(offset)
+    /** Build a CSV or PDF for the currently selected period and return a shareable Uri. */
+    suspend fun export(pdf: Boolean): Uri? {
+        val (start, end, label) = currentRange()
         val txns = dao.transactionsBetween(start, end)
-        val label = TimeRanges.monthLabel(offset)
         val income = txns.filter { it.type == TxnType.CREDIT }.sumOf { it.amount }
         val spend = txns.filter { it.type == TxnType.DEBIT }.sumOf { it.amount }
         return if (pdf) {
