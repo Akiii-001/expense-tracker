@@ -35,11 +35,35 @@ interface TransactionDao {
     fun observeTotalSince(since: Long, type: String): Flow<Double>
 
     @Query(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+            "WHERE timestamp >= :start AND timestamp < :end AND type = :type"
+    )
+    fun observeTotalBetween(start: Long, end: Long, type: String): Flow<Double>
+
+    // Sum for a category within a time range (used for budget checks).
+    @Query(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+            "WHERE timestamp >= :start AND timestamp < :end AND type = :type AND category = :category"
+    )
+    suspend fun sumForCategoryBetween(start: Long, end: Long, type: String, category: String): Double
+
+    @Query(
         "SELECT category, COALESCE(SUM(amount), 0) AS total FROM transactions " +
             "WHERE timestamp >= :since AND type = :type " +
             "GROUP BY category ORDER BY total DESC"
     )
     fun observeCategoryTotalsSince(since: Long, type: String): Flow<List<CategoryTotal>>
+
+    @Query(
+        "SELECT category, COALESCE(SUM(amount), 0) AS total FROM transactions " +
+            "WHERE timestamp >= :start AND timestamp < :end AND type = :type " +
+            "GROUP BY category ORDER BY total DESC"
+    )
+    fun observeCategoryTotalsBetween(start: Long, end: Long, type: String): Flow<List<CategoryTotal>>
+
+    // Transactions within a range, for export.
+    @Query("SELECT * FROM transactions WHERE timestamp >= :start AND timestamp < :end ORDER BY timestamp")
+    suspend fun transactionsBetween(start: Long, end: Long): List<Transaction>
 
     // Auto-learn helpers ---------------------------------------------------
 
@@ -76,4 +100,18 @@ interface TransactionDao {
 
     @Query("SELECT * FROM monthly_settings")
     fun observeAllSettings(): Flow<List<MonthlySetting>>
+
+    // Budgets --------------------------------------------------------------
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setBudget(budget: Budget)
+
+    @Delete
+    suspend fun deleteBudget(budget: Budget)
+
+    @Query("SELECT * FROM budgets")
+    fun observeBudgets(): Flow<List<Budget>>
+
+    @Query("SELECT amount FROM budgets WHERE category = :category")
+    suspend fun budgetFor(category: String): Double?
 }

@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.upi.expensetracker.ui.theme.AppTheme
@@ -62,7 +63,11 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppRoot(viewModel: ExpenseViewModel, focusTransactionId: Long) {
-    var tab by remember { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(0) }
+    // Consume the notification's "focus this transaction" only once, so it
+    // doesn't re-open every time you come back to the Activity tab.
+    var focusConsumed by rememberSaveable { mutableStateOf(false) }
+    val effectiveFocus = if (focusConsumed) -1L else focusTransactionId
 
     Scaffold(
         topBar = { AppTopBar() },
@@ -71,10 +76,15 @@ fun AppRoot(viewModel: ExpenseViewModel, focusTransactionId: Long) {
         when (tab) {
             0 -> HomeScreen(
                 viewModel = viewModel,
-                focusTransactionId = focusTransactionId,
+                focusTransactionId = effectiveFocus,
+                onFocusConsumed = { focusConsumed = true },
                 modifier = Modifier.padding(padding)
             )
-            else -> ReportsScreen(
+            1 -> ReportsScreen(
+                viewModel = viewModel,
+                modifier = Modifier.padding(padding)
+            )
+            else -> BudgetsScreen(
                 viewModel = viewModel,
                 modifier = Modifier.padding(padding)
             )

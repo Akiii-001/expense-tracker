@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,6 +85,12 @@ fun AppBottomBar(selected: Int, onSelect: (Int) -> Unit) {
             icon = { Icon(Icons.Filled.BarChart, contentDescription = null) },
             label = { Text("Reports") }
         )
+        NavigationBarItem(
+            selected = selected == 2,
+            onClick = { onSelect(2) },
+            icon = { Icon(Icons.Filled.Savings, contentDescription = null) },
+            label = { Text("Budgets") }
+        )
     }
 }
 
@@ -93,6 +100,7 @@ internal fun money(value: Double): String = "\u20B9%,.0f".format(value)
 fun HomeScreen(
     viewModel: ExpenseViewModel,
     focusTransactionId: Long,
+    onFocusConsumed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val transactions by viewModel.transactions.collectAsState()
@@ -108,7 +116,10 @@ fun HomeScreen(
 
     LaunchedEffect(focusTransactionId, transactions) {
         if (focusTransactionId > 0 && editing == null) {
-            transactions.firstOrNull { it.id == focusTransactionId }?.let { editing = it }
+            transactions.firstOrNull { it.id == focusTransactionId }?.let {
+                editing = it
+                onFocusConsumed()
+            }
         }
     }
 
