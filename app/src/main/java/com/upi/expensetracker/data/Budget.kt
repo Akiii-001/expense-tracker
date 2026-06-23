@@ -1,14 +1,14 @@
 package com.upi.expensetracker.data
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
 /**
- * A monthly spending target for a category (recurring every month).
- * e.g. category = "Food", amount = 5000.
+ * A spending target for a category in a specific month.
+ * monthKey is "yyyy-MM", e.g. monthKey = "2026-07", category = "Food", amount = 5000.
  */
-@Entity(tableName = "budgets")
+@Entity(tableName = "budgets", primaryKeys = ["monthKey", "category"])
 data class Budget(
-    @PrimaryKey val category: String,
+    val monthKey: String,
+    val category: String,
     val amount: Double
 )

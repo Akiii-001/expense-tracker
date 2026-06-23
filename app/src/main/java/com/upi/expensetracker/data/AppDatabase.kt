@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Transaction::class, CustomCategory::class, MonthlySetting::class, Budget::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,6 +53,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v4 -> v5: budgets become per-month. Recreate with composite key and
+        // move any existing recurring budgets into the current month.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS budgets_new (" +
+                        "monthKey TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, " +
+                        "PRIMARY KEY(monthKey, category))"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO budgets_new (monthKey, category, amount) " +
+                        "SELECT strftime('%Y-%m','now','localtime'), category, amount FROM budgets"
+                )
+                db.execSQL("DROP TABLE budgets")
+                db.execSQL("ALTER TABLE budgets_new RENAME TO budgets")
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -60,7 +78,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expenses.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

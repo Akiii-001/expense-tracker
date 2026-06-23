@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -49,8 +51,41 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val customCategories = dao.observeCustomCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CustomCategory>())
 
-    val budgets = dao.observeBudgets()
+    // -------- Budgets (per month) --------
+
+    private val budgetOffset = MutableStateFlow(0)
+
+    val budgetMonthLabel = budgetOffset
+        .map { TimeRanges.monthLabel(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimeRanges.monthLabel(0))
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val budgetsForMonth = budgetOffset
+        .flatMapLatest { off -> dao.observeBudgetsForMonth(TimeRanges.monthKeyForOffset(off)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<Budget>())
+
+    fun changeBudgetMonth(delta: Int) {
+        budgetOffset.value += delta
+    }
+
+    fun setBudget(category: String, amount: Double) {
+        viewModelScope.launch {
+            val key = TimeRanges.monthKeyForOffset(budgetOffset.value)
+            if (amount > 0) dao.setBudget(Budget(key, category, amount))
+            else dao.deleteBudget(Budget(key, category, 0.0))
+        }
+    }
+
+    fun copyPreviousMonthBudgets() {
+        viewModelScope.launch {
+            val target = budgetOffset.value
+            val curKey = TimeRanges.monthKeyForOffset(target)
+            val prevKey = TimeRanges.monthKeyForOffset(target - 1)
+            dao.budgetsForMonth(prevKey).forEach {
+                dao.setBudget(Budget(curKey, it.category, it.amount))
+            }
+        }
+    }
 
     val openingBalance = combine(dao.observeAll(), dao.observeAllSettings()) { txns, settings ->
         computeOpeningFor(monthKey, monthStart, txns, settings)
@@ -96,11 +131,16 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             val key = if (sel is ReportSelection.Month) TimeRanges.monthKeyForOffset(sel.offset) else ""
+            val budgetsFlow = if (sel is ReportSelection.Month) {
+                dao.observeBudgetsForMonth(key)
+            } else {
+                flowOf(emptyList<Budget>())
+            }
             combine(
                 dao.observeTotalBetween(start, end, TxnType.CREDIT),
                 dao.observeTotalBetween(start, end, TxnType.DEBIT),
                 dao.observeCategoryTotalsBetween(start, end, TxnType.DEBIT),
-                dao.observeBudgets(),
+                budgetsFlow,
                 combine(dao.observeAll(), dao.observeAllSettings()) { txns, settings ->
                     if (isRange) 0.0 else computeOpeningFor(key, start, txns, settings)
                 }
@@ -181,13 +221,6 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setBudget(category: String, amount: Double) {
-        viewModelScope.launch {
-            if (amount > 0) dao.setBudget(Budget(category, amount))
-            else dao.deleteBudget(Budget(category, 0.0))
-        }
-    }
-
     /** Build a CSV or PDF for the currently selected period and return a shareable Uri. */
     suspend fun export(pdf: Boolean): Uri? {
         val (start, end, label) = currentRange()
@@ -205,7 +238,7 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun checkBudget(category: String, type: String) {
         if (type != TxnType.DEBIT) return
-        val budget = dao.budgetFor(category) ?: return
+        val budget = dao.budgetFor(monthKey, category) ?: return
         if (budget <= 0) return
         val (start, end) = TimeRanges.monthRange(0)
         val spent = dao.sumForCategoryBetween(start, end, TxnType.DEBIT, category)

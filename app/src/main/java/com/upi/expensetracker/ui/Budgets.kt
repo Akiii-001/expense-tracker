@@ -17,11 +17,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +48,8 @@ import com.upi.expensetracker.data.TxnType
 
 @Composable
 fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
-    val budgets by viewModel.budgets.collectAsState()
+    val budgets by viewModel.budgetsForMonth.collectAsState()
+    val monthLabel by viewModel.budgetMonthLabel.collectAsState()
     val custom by viewModel.customCategories.collectAsState()
 
     val categories = remember(custom) {
@@ -59,12 +66,37 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         item {
             Text("Monthly budgets", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                "Set a target per category. You'll get a nudge when you near or cross it, " +
-                    "and the Reports tab shows planned vs actual.",
+                "Set targets per category for each month. You'll get a nudge when you near " +
+                    "or cross one, and Reports shows planned vs actual for that month.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { viewModel.changeBudgetMonth(-1) }) {
+                    Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous month")
+                }
+                Text(monthLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { viewModel.changeBudgetMonth(1) }) {
+                    Icon(Icons.Filled.ChevronRight, contentDescription = "Next month")
+                }
+            }
+
+            if (budgets.isEmpty()) {
+                OutlinedButton(
+                    onClick = { viewModel.copyPreviousMonthBudgets() },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Copy last month's budgets")
+                }
+            }
         }
         items(categories, key = { it }) { cat ->
             BudgetRow(cat, budgetMap[cat]) { editing = cat }
@@ -74,6 +106,7 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     editing?.let { cat ->
         BudgetDialog(
             category = cat,
+            month = monthLabel,
             current = budgetMap[cat] ?: 0.0,
             onDismiss = { editing = null },
             onSave = { amount ->
@@ -117,6 +150,7 @@ private fun BudgetRow(category: String, amount: Double?, onClick: () -> Unit) {
 @Composable
 private fun BudgetDialog(
     category: String,
+    month: String,
     current: Double,
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit
@@ -133,7 +167,7 @@ private fun BudgetDialog(
         text = {
             Column {
                 Text(
-                    "Monthly target for $category. Set to 0 to remove it.",
+                    "Target for $category in $month. Set to 0 to remove it.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

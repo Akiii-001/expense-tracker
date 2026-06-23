@@ -101,7 +101,7 @@ interface TransactionDao {
     @Query("SELECT * FROM monthly_settings")
     fun observeAllSettings(): Flow<List<MonthlySetting>>
 
-    // Budgets --------------------------------------------------------------
+    // Budgets (per month) --------------------------------------------------
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setBudget(budget: Budget)
@@ -109,9 +109,12 @@ interface TransactionDao {
     @Delete
     suspend fun deleteBudget(budget: Budget)
 
-    @Query("SELECT * FROM budgets")
-    fun observeBudgets(): Flow<List<Budget>>
+    @Query("SELECT * FROM budgets WHERE monthKey = :monthKey")
+    fun observeBudgetsForMonth(monthKey: String): Flow<List<Budget>>
 
-    @Query("SELECT amount FROM budgets WHERE category = :category")
-    suspend fun budgetFor(category: String): Double?
+    @Query("SELECT * FROM budgets WHERE monthKey = :monthKey")
+    suspend fun budgetsForMonth(monthKey: String): List<Budget>
+
+    @Query("SELECT amount FROM budgets WHERE monthKey = :monthKey AND category = :category")
+    suspend fun budgetFor(monthKey: String, category: String): Double?
 }
