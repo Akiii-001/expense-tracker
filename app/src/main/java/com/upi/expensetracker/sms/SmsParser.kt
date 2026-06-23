@@ -18,14 +18,18 @@ object SmsParser {
         val type: String
     )
 
-    // Money LEFT the account.
+    // Money LEFT the account. NOTE: we use action words only. We deliberately
+    // do NOT include the bare word "debit", because phrases like "Debit Card"
+    // would wrongly match (it's the card name, not the action).
     private val debitKeywords = listOf(
-        "debited", "debit", "spent", "sent", "paid", "withdrawn", "purchase"
+        "debited", "spent", "sent", "paid", "withdrawn", "purchase"
     )
 
-    // Money CAME IN to the account.
+    // Money CAME IN to the account (including reversals/refunds). Again, action
+    // words only, not the bare word "credit" ("Credit Card" is not a credit).
     private val creditKeywords = listOf(
-        "credited", "credit", "received", "deposited", "added to"
+        "credited", "reversal", "reversed", "refund", "refunded",
+        "received", "deposited", "added to", "cashback"
     )
 
     // Strong signal this is a banking/UPI/wallet message rather than a random text.
@@ -56,9 +60,10 @@ object SmsParser {
         RegexOption.IGNORE_CASE
     )
 
-    // Merchant after "at" (card / wallet / POS) e.g. "at HKGN PARATH . Avl bal".
+    // Merchant after "at" (card / wallet / POS) e.g. "at ORACLE SINGAPORE on ..."
+    // or "at HKGN PARATH . Avl bal". Stops at "on", a period, "avl", or end.
     private val atRegex = Regex(
-        "\\bat\\s+([a-z0-9][a-z0-9 &._'\\-]*?)\\s*(?:\\.|\\bavl\\b|$)",
+        "\\bat\\s+([a-z0-9][a-z0-9 &._'\\-]*?)(?:\\s+on\\b|\\s*\\.|\\s+avl\\b|$)",
         RegexOption.IGNORE_CASE
     )
 
@@ -68,11 +73,11 @@ object SmsParser {
         if (blocklist.any { lower.contains(it) }) return null
         if (bankSignals.none { lower.contains(it) }) return null
 
-        // Decide direction. Debit wins if both somehow appear (rare), since a
-        // debit alert is the one we most want to capture accurately.
+        // Decide direction. Check CREDIT/reversal first, so a reversal message
+        // that mentions "Debit Card" isn't mistaken for a debit.
         val type = when {
-            debitKeywords.any { lower.contains(it) } -> TxnType.DEBIT
             creditKeywords.any { lower.contains(it) } -> TxnType.CREDIT
+            debitKeywords.any { lower.contains(it) } -> TxnType.DEBIT
             else -> return null
         }
 
@@ -97,6 +102,7 @@ object SmsParser {
         return raw
             .split(Regex("\\s+(on|via|ref|upi|dated)\\b", RegexOption.IGNORE_CASE))
             .first()
+            .replace(Regex("\\s+"), " ")
             .trim()
             .take(60)
     }
