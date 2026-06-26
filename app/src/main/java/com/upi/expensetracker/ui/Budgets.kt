@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
@@ -52,12 +53,16 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val monthLabel by viewModel.budgetMonthLabel.collectAsState()
     val custom by viewModel.customCategories.collectAsState()
 
-    val categories = remember(custom) {
+    val allCategories = remember(custom) {
         (Categories.EXPENSE + custom.filter { it.type == TxnType.DEBIT }.map { it.name }).distinct()
     }
     val budgetMap = budgets.associate { it.category to it.amount }
+    // Show only categories you've chosen (those with a budget this month).
+    val shown = allCategories.filter { budgetMap.containsKey(it) }
+    val available = allCategories.filter { !budgetMap.containsKey(it) }
 
     var editing by remember { mutableStateOf<String?>(null) }
+    var adding by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -66,8 +71,8 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         item {
             Text("Monthly budgets", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                "Set targets per category for each month. You'll get a nudge when you near " +
-                    "or cross one, and Reports shows planned vs actual for that month.",
+                "Track only the categories you want. Add a category to set its target; " +
+                    "set a budget to 0 to remove it from this list.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -86,20 +91,36 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
                     Icon(Icons.Filled.ChevronRight, contentDescription = "Next month")
                 }
             }
+            Spacer(Modifier.height(4.dp))
+        }
 
+        items(shown, key = { it }) { cat ->
+            BudgetRow(cat, budgetMap[cat]) { editing = cat }
+        }
+
+        item {
+            Spacer(Modifier.height(12.dp))
+            if (available.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { adding = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add a category")
+                }
+            }
             if (budgets.isEmpty()) {
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.copyPreviousMonthBudgets() },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Copy last month's budgets")
                 }
             }
-        }
-        items(categories, key = { it }) { cat ->
-            BudgetRow(cat, budgetMap[cat]) { editing = cat }
         }
     }
 
@@ -115,6 +136,43 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             }
         )
     }
+
+    if (adding) {
+        AddCategoryDialog(
+            available = available,
+            onDismiss = { adding = false },
+            onPick = { cat ->
+                adding = false
+                editing = cat
+            }
+        )
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AddCategoryDialog(
+    available: List<String>,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Add a category") },
+        text = {
+            androidx.compose.foundation.layout.FlowRow {
+                available.forEach { cat ->
+                    androidx.compose.material3.AssistChip(
+                        onClick = { onPick(cat) },
+                        label = { Text(cat) },
+                        modifier = Modifier.padding(end = 8.dp, bottom = 4.dp)
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable

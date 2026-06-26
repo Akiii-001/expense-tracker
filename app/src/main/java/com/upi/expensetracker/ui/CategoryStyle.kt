@@ -5,9 +5,12 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalGasStation
@@ -48,6 +51,9 @@ object CategoryStyle {
         "Personal Care" to Style(Icons.Filled.Spa, Color(0xFF00897B)),
         "Gifts" to Style(Icons.Filled.CardGiftcard, Color(0xFFD81B60)),
         "Investments" to Style(Icons.Filled.TrendingUp, Color(0xFF388E3C)),
+        "Family" to Style(Icons.Filled.FamilyRestroom, Color(0xFF8E24AA)),
+        "Team Outing" to Style(Icons.Filled.Groups, Color(0xFFEF6C00)),
+        "Reimbursement" to Style(Icons.Filled.CurrencyExchange, Color(0xFF1B873F)),
         "Other" to Style(Icons.Filled.Category, Color(0xFF607D8B)),
         // Income
         "Income" to Style(Icons.Filled.Payments, Color(0xFF1B873F)),
