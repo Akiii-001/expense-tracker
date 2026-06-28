@@ -94,7 +94,8 @@ fun AppBottomBar(selected: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-internal fun money(value: Double): String = "\u20B9%,.0f".format(value)
+internal fun money(value: Double): String =
+    if (value % 1.0 == 0.0) "\u20B9%,.0f".format(value) else "\u20B9%,.2f".format(value)
 
 @Composable
 fun HomeScreen(
@@ -174,7 +175,8 @@ fun HomeScreen(
             onDelete = {
                 viewModel.deleteTransaction(txn)
                 editing = null
-            }
+            },
+            onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) }
         )
     }
 
@@ -182,6 +184,7 @@ fun HomeScreen(
         AddTransactionSheet(
             customCategories = customCategories,
             onDismiss = { showAdd = false },
+            onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) },
             onAdd = { amount, payee, note, type, category ->
                 viewModel.addManual(amount, payee, note, type, category)
                 showAdd = false

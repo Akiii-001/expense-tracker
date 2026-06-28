@@ -1,14 +1,24 @@
 package com.upi.expensetracker.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -34,6 +44,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -49,6 +61,18 @@ private fun categoriesFor(type: String, custom: List<CustomCategory>): List<Stri
     val extras = custom.filter { it.type == type }.map { it.name }.filter { it !in base }
     return base + extras
 }
+
+/** Keep only digits and a single decimal point. */
+internal fun sanitizeAmount(input: String): String {
+    val filtered = input.filter { it.isDigit() || it == '.' }
+    val dot = filtered.indexOf('.')
+    return if (dot < 0) filtered
+    else filtered.substring(0, dot + 1) + filtered.substring(dot + 1).replace(".", "")
+}
+
+/** Format a stored amount for editing (no trailing .0 for whole numbers). */
+internal fun amountText(value: Double): String =
+    if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -95,6 +119,7 @@ private fun CategoryChips(
 fun AddTransactionSheet(
     customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
+    onSetCategoryIcon: (String, String) -> Unit,
     onAdd: (Double, String, String, String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -102,6 +127,7 @@ fun AddTransactionSheet(
     var payee by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TxnType.DEBIT) }
+    var showIconPicker by remember { mutableStateOf(false) }
 
     val options = categoriesFor(type, customCategories)
     var category by remember { mutableStateOf(options.first()) }
@@ -132,7 +158,7 @@ fun AddTransactionSheet(
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = amount,
-                onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { amount = sanitizeAmount(it) },
                 label = { Text("Amount (\u20B9)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
@@ -156,7 +182,11 @@ fun AddTransactionSheet(
             )
 
             Spacer(Modifier.height(12.dp))
-            Text("Category", style = MaterialTheme.typography.labelLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Category", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.weight(1f))
+                if (category.isNotBlank()) CategoryIconButton(category) { showIconPicker = true }
+            }
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
@@ -169,6 +199,17 @@ fun AddTransactionSheet(
             ) { Text("Add transaction") }
         }
     }
+
+    if (showIconPicker && category.isNotBlank()) {
+        IconPickerDialog(
+            category = category,
+            onDismiss = { showIconPicker = false },
+            onPick = { key ->
+                onSetCategoryIcon(category, key)
+                showIconPicker = false
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -178,11 +219,13 @@ fun EditTransactionSheet(
     customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onSetCategoryIcon: (String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isCredit = transaction.type == TxnType.CREDIT
     var note by remember { mutableStateOf(transaction.note) }
+    var showIconPicker by remember { mutableStateOf(false) }
     val options = categoriesFor(transaction.type, customCategories)
     var category by remember {
         mutableStateOf(if (transaction.category in options) transaction.category else options.first())
@@ -219,7 +262,11 @@ fun EditTransactionSheet(
             )
 
             Spacer(Modifier.height(12.dp))
-            Text("Category", style = MaterialTheme.typography.labelLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Category", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.weight(1f))
+                CategoryIconButton(category) { showIconPicker = true }
+            }
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
@@ -239,6 +286,17 @@ fun EditTransactionSheet(
             }
         }
     }
+
+    if (showIconPicker) {
+        IconPickerDialog(
+            category = category,
+            onDismiss = { showIconPicker = false },
+            onPick = { key ->
+                onSetCategoryIcon(category, key)
+                showIconPicker = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -247,7 +305,7 @@ fun OpeningBalanceDialog(
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit
 ) {
-    var text by remember { mutableStateOf(if (current != 0.0) current.toLong().toString() else "") }
+    var text by remember { mutableStateOf(if (current != 0.0) amountText(current) else "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -267,12 +325,66 @@ fun OpeningBalanceDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                    onValueChange = { text = sanitizeAmount(it) },
                     label = { Text("Amount (\u20B9)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+    )
+}
+
+/** A tappable circular avatar showing a category's current icon. */
+@Composable
+internal fun CategoryIconButton(category: String, onClick: () -> Unit) {
+    val style = categoryStyleFor(category)
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(style.color.copy(alpha = 0.15f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(style.icon, contentDescription = "Change icon", tint = style.color, modifier = Modifier.size(22.dp))
+    }
+}
+
+/** Grid of selectable icons from the icon pack. */
+@Composable
+internal fun IconPickerDialog(
+    category: String,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Icon for $category") },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(5),
+                modifier = Modifier.heightIn(max = 360.dp)
+            ) {
+                items(IconPack.keys, key = { it }) { key ->
+                    val vector = IconPack.icon(key)
+                    if (vector != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(6.dp)
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onPick(key) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(vector, contentDescription = key, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
             }
         }
     )

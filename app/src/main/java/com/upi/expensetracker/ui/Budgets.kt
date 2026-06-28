@@ -9,15 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -165,43 +161,6 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-private fun IconPickerDialog(
-    category: String,
-    onDismiss: () -> Unit,
-    onPick: (String) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Icon for $category") },
-        text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                modifier = Modifier.heightIn(max = 360.dp)
-            ) {
-                gridItems(IconPack.keys, key = { it }) { key ->
-                    val vector = IconPack.icon(key)
-                    if (vector != null) {
-                        Box(
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onPick(key) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(vector, contentDescription = key, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-            }
-        }
-    )
-}
-
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AddCategoryDialog(
@@ -268,7 +227,7 @@ private fun BudgetDialog(
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit
 ) {
-    var text by remember { mutableStateOf(if (current > 0) current.toLong().toString() else "") }
+    var text by remember { mutableStateOf(if (current > 0) amountText(current) else "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -287,7 +246,7 @@ private fun BudgetDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                    onValueChange = { text = sanitizeAmount(it) },
                     label = { Text("Amount (\u20B9)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
