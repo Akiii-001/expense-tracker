@@ -9,11 +9,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +67,7 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
 
     var editing by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
+    var iconEditing by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -95,7 +100,7 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         }
 
         items(shown, key = { it }) { cat ->
-            BudgetRow(cat, budgetMap[cat]) { editing = cat }
+            BudgetRow(cat, budgetMap[cat], onIconClick = { iconEditing = cat }) { editing = cat }
         }
 
         item {
@@ -147,6 +152,54 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             }
         )
     }
+
+    iconEditing?.let { cat ->
+        IconPickerDialog(
+            category = cat,
+            onDismiss = { iconEditing = null },
+            onPick = { key ->
+                viewModel.setCategoryIcon(cat, key)
+                iconEditing = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun IconPickerDialog(
+    category: String,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Icon for $category") },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(5),
+                modifier = Modifier.heightIn(max = 360.dp)
+            ) {
+                gridItems(IconPack.keys, key = { it }) { key ->
+                    val vector = IconPack.icon(key)
+                    if (vector != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(6.dp)
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onPick(key) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(vector, contentDescription = key, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+            }
+        }
+    )
 }
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -176,8 +229,8 @@ private fun AddCategoryDialog(
 }
 
 @Composable
-private fun BudgetRow(category: String, amount: Double?, onClick: () -> Unit) {
-    val style = CategoryStyle.of(category)
+private fun BudgetRow(category: String, amount: Double?, onIconClick: () -> Unit, onClick: () -> Unit) {
+    val style = categoryStyleFor(category)
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp).clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
@@ -188,10 +241,12 @@ private fun BudgetRow(category: String, amount: Double?, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(40.dp).clip(CircleShape).background(style.color.copy(alpha = 0.15f)),
+                modifier = Modifier.size(40.dp).clip(CircleShape)
+                    .background(style.color.copy(alpha = 0.15f))
+                    .clickable { onIconClick() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(style.icon, contentDescription = null, tint = style.color, modifier = Modifier.size(22.dp))
+                Icon(style.icon, contentDescription = "Change icon", tint = style.color, modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.width(12.dp))
             Text(category, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)

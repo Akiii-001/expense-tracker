@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.upi.expensetracker.data.AppDatabase
 import com.upi.expensetracker.data.Budget
 import com.upi.expensetracker.data.Categories
+import com.upi.expensetracker.data.CategoryIcon
 import com.upi.expensetracker.data.CategoryTotal
 import com.upi.expensetracker.data.CustomCategory
 import com.upi.expensetracker.data.MonthlySetting
@@ -50,6 +51,14 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
 
     val customCategories = dao.observeCustomCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CustomCategory>())
+
+    val categoryIcons = dao.observeCategoryIcons()
+        .map { list -> list.associate { it.category to it.iconKey } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setCategoryIcon(category: String, iconKey: String) {
+        viewModelScope.launch { dao.setCategoryIcon(CategoryIcon(category, iconKey)) }
+    }
 
     // -------- Budgets (per month) --------
 

@@ -208,7 +208,7 @@ private fun Pill(label: String, value: String, accent: Color, modifier: Modifier
 
 @Composable
 private fun CategoryRow(row: CategoryTotal, totalSpend: Double, budget: Double?) {
-    val style = CategoryStyle.of(row.category)
+    val style = categoryStyleFor(row.category)
     // Bar fraction is vs budget if a budget exists, else vs total spend.
     val fraction = when {
         budget != null && budget > 0 -> (row.total / budget).toFloat().coerceIn(0f, 1f)

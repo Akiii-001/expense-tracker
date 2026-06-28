@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,26 +70,29 @@ fun AppRoot(viewModel: ExpenseViewModel, focusTransactionId: Long) {
     // doesn't re-open every time you come back to the Activity tab.
     var focusConsumed by rememberSaveable { mutableStateOf(false) }
     val effectiveFocus = if (focusConsumed) -1L else focusTransactionId
+    val categoryIcons by viewModel.categoryIcons.collectAsState()
 
-    Scaffold(
-        topBar = { AppTopBar() },
-        bottomBar = { AppBottomBar(selected = tab, onSelect = { tab = it }) }
-    ) { padding ->
-        when (tab) {
-            0 -> HomeScreen(
-                viewModel = viewModel,
-                focusTransactionId = effectiveFocus,
-                onFocusConsumed = { focusConsumed = true },
-                modifier = Modifier.padding(padding)
-            )
-            1 -> ReportsScreen(
-                viewModel = viewModel,
-                modifier = Modifier.padding(padding)
-            )
-            else -> BudgetsScreen(
-                viewModel = viewModel,
-                modifier = Modifier.padding(padding)
-            )
+    CompositionLocalProvider(LocalCategoryIcons provides categoryIcons) {
+        Scaffold(
+            topBar = { AppTopBar() },
+            bottomBar = { AppBottomBar(selected = tab, onSelect = { tab = it }) }
+        ) { padding ->
+            when (tab) {
+                0 -> HomeScreen(
+                    viewModel = viewModel,
+                    focusTransactionId = effectiveFocus,
+                    onFocusConsumed = { focusConsumed = true },
+                    modifier = Modifier.padding(padding)
+                )
+                1 -> ReportsScreen(
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(padding)
+                )
+                else -> BudgetsScreen(
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(padding)
+                )
+            }
         }
     }
 }

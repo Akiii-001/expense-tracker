@@ -117,4 +117,12 @@ interface TransactionDao {
 
     @Query("SELECT amount FROM budgets WHERE monthKey = :monthKey AND category = :category")
     suspend fun budgetFor(monthKey: String, category: String): Double?
+
+    // Category icons -------------------------------------------------------
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setCategoryIcon(icon: CategoryIcon)
+
+    @Query("SELECT * FROM category_icons")
+    fun observeCategoryIcons(): Flow<List<CategoryIcon>>
 }

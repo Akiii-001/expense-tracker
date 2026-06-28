@@ -3,6 +3,8 @@ package com.upi.expensetracker.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.BeachAccess
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CurrencyExchange
@@ -27,8 +29,26 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+
+/** User-chosen icon overrides (category name -> icon pack key), provided at the app root. */
+val LocalCategoryIcons = compositionLocalOf { emptyMap<String, String>() }
+
+/**
+ * Resolves a category's style, honoring a user-chosen icon from the icon pack
+ * if one is set, otherwise falling back to the built-in default.
+ */
+@Composable
+fun categoryStyleFor(category: String): CategoryStyle.Style {
+    val overrides = LocalCategoryIcons.current
+    val base = CategoryStyle.of(category)
+    val key = overrides[category]
+    val icon = key?.let { IconPack.icon(it) } ?: base.icon
+    return CategoryStyle.Style(icon, base.color)
+}
 
 /** Icon + accent color for each category, used across the UI. */
 object CategoryStyle {
@@ -54,6 +74,8 @@ object CategoryStyle {
         "Family" to Style(Icons.Filled.FamilyRestroom, Color(0xFF8E24AA)),
         "Team Outing" to Style(Icons.Filled.Groups, Color(0xFFEF6C00)),
         "Reimbursement" to Style(Icons.Filled.CurrencyExchange, Color(0xFF1B873F)),
+        "Electricity" to Style(Icons.Filled.Bolt, Color(0xFFF9A825)),
+        "Vacation" to Style(Icons.Filled.BeachAccess, Color(0xFF00ACC1)),
         "Other" to Style(Icons.Filled.Category, Color(0xFF607D8B)),
         // Income
         "Income" to Style(Icons.Filled.Payments, Color(0xFF1B873F)),

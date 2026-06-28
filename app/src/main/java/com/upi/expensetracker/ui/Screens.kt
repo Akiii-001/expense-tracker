@@ -305,7 +305,7 @@ private fun EmptyState() {
 private fun TransactionRow(txn: Transaction, onClick: () -> Unit) {
     val df = remember { SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()) }
     val isCredit = txn.type == TxnType.CREDIT
-    val style = CategoryStyle.of(txn.category)
+    val style = categoryStyleFor(txn.category)
 
     // Title is "what for" (note) when present, else the payee/merchant.
     val title = txn.note.ifBlank { txn.payee }
