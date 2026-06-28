@@ -33,21 +33,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.upi.expensetracker.data.CategoryIcon
 
-/** User-chosen icon overrides (category name -> icon pack key), provided at the app root. */
-val LocalCategoryIcons = compositionLocalOf { emptyMap<String, String>() }
+/** User-chosen styles (category name -> icon/color override), provided at the app root. */
+val LocalCategoryStyles = compositionLocalOf { emptyMap<String, CategoryIcon>() }
+
+/** Selectable colors for category customization. */
+object Palette {
+    val colors: List<String> = listOf(
+        "#EF6C00", "#D32F2F", "#C2185B", "#8E24AA", "#5E35B1", "#3949AB",
+        "#1E88E5", "#039BE5", "#00ACC1", "#00897B", "#43A047", "#7CB342",
+        "#F9A825", "#FB8C00", "#6D4C41", "#546E7A", "#4F46E5", "#1B873F"
+    )
+
+    fun parse(hex: String): Color? =
+        runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+}
 
 /**
- * Resolves a category's style, honoring a user-chosen icon from the icon pack
- * if one is set, otherwise falling back to the built-in default.
+ * Resolves a category's style, honoring user-chosen icon and color overrides
+ * if set, otherwise falling back to the built-in defaults.
  */
 @Composable
 fun categoryStyleFor(category: String): CategoryStyle.Style {
-    val overrides = LocalCategoryIcons.current
+    val overrides = LocalCategoryStyles.current
     val base = CategoryStyle.of(category)
-    val key = overrides[category]
-    val icon = key?.let { IconPack.icon(it) } ?: base.icon
-    return CategoryStyle.Style(icon, base.color)
+    val o = overrides[category]
+    val icon = o?.iconKey?.takeIf { it.isNotBlank() }?.let { IconPack.icon(it) } ?: base.icon
+    val color = o?.colorHex?.let { Palette.parse(it) } ?: base.color
+    return CategoryStyle.Style(icon, color)
 }
 
 /** Icon + accent color for each category, used across the UI. */

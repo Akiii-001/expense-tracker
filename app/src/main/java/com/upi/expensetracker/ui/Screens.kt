@@ -176,7 +176,8 @@ fun HomeScreen(
                 viewModel.deleteTransaction(txn)
                 editing = null
             },
-            onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) }
+            onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) },
+            onSetCategoryColor = { cat, hex -> viewModel.setCategoryColor(cat, hex) }
         )
     }
 
@@ -185,6 +186,7 @@ fun HomeScreen(
             customCategories = customCategories,
             onDismiss = { showAdd = false },
             onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) },
+            onSetCategoryColor = { cat, hex -> viewModel.setCategoryColor(cat, hex) },
             onAdd = { amount, payee, note, type, category ->
                 viewModel.addManual(amount, payee, note, type, category)
                 showAdd = false
@@ -272,7 +274,14 @@ private fun MiniStat(label: String, value: String, accent: Color, modifier: Modi
     ) {
         Column {
             Text(label, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), style = MaterialTheme.typography.labelMedium)
-            Text(value, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text(
+                value,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
 }

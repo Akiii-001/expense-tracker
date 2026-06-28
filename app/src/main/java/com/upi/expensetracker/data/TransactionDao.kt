@@ -121,7 +121,7 @@ interface TransactionDao {
     // Category icons -------------------------------------------------------
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun setCategoryIcon(icon: CategoryIcon)
+    suspend fun setCategoryStyle(icon: CategoryIcon)
 
     @Query("SELECT * FROM category_icons")
     fun observeCategoryIcons(): Flow<List<CategoryIcon>>

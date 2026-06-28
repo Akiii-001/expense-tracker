@@ -48,7 +48,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.upi.expensetracker.data.CategoryTotal
 import com.upi.expensetracker.ui.theme.IncomeGreen
 import com.upi.expensetracker.ui.theme.SpendRed
@@ -197,11 +199,20 @@ private fun Pill(label: String, value: String, accent: Color, modifier: Modifier
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(accent.copy(alpha = 0.12f))
-            .padding(vertical = 10.dp, horizontal = 8.dp)
+            .padding(vertical = 10.dp, horizontal = 6.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = accent)
+            Text(
+                value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = accent,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

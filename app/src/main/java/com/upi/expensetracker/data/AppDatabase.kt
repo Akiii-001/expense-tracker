@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Transaction::class, CustomCategory::class, MonthlySetting::class, Budget::class, CategoryIcon::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -82,6 +82,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v6 -> v7: allow a color too, and make iconKey optional.
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS category_icons_new (" +
+                        "category TEXT NOT NULL, iconKey TEXT, colorHex TEXT, " +
+                        "PRIMARY KEY(category))"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO category_icons_new (category, iconKey, colorHex) " +
+                        "SELECT category, iconKey, NULL FROM category_icons"
+                )
+                db.execSQL("DROP TABLE category_icons")
+                db.execSQL("ALTER TABLE category_icons_new RENAME TO category_icons")
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -89,7 +106,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expenses.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                    )
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

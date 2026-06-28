@@ -150,13 +150,11 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     }
 
     iconEditing?.let { cat ->
-        IconPickerDialog(
+        CategoryStyleDialog(
             category = cat,
             onDismiss = { iconEditing = null },
-            onPick = { key ->
-                viewModel.setCategoryIcon(cat, key)
-                iconEditing = null
-            }
+            onPickIcon = { key -> viewModel.setCategoryIcon(cat, key) },
+            onPickColor = { hex -> viewModel.setCategoryColor(cat, hex) }
         )
     }
 }

@@ -52,12 +52,22 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val customCategories = dao.observeCustomCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CustomCategory>())
 
-    val categoryIcons = dao.observeCategoryIcons()
-        .map { list -> list.associate { it.category to it.iconKey } }
+    val categoryStyles = dao.observeCategoryIcons()
+        .map { list -> list.associateBy { it.category } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     fun setCategoryIcon(category: String, iconKey: String) {
-        viewModelScope.launch { dao.setCategoryIcon(CategoryIcon(category, iconKey)) }
+        viewModelScope.launch {
+            val existing = categoryStyles.value[category]
+            dao.setCategoryStyle(CategoryIcon(category, iconKey, existing?.colorHex))
+        }
+    }
+
+    fun setCategoryColor(category: String, colorHex: String) {
+        viewModelScope.launch {
+            val existing = categoryStyles.value[category]
+            dao.setCategoryStyle(CategoryIcon(category, existing?.iconKey, colorHex))
+        }
     }
 
     // -------- Budgets (per month) --------

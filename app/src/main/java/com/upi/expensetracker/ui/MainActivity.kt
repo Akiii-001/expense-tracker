@@ -70,9 +70,9 @@ fun AppRoot(viewModel: ExpenseViewModel, focusTransactionId: Long) {
     // doesn't re-open every time you come back to the Activity tab.
     var focusConsumed by rememberSaveable { mutableStateOf(false) }
     val effectiveFocus = if (focusConsumed) -1L else focusTransactionId
-    val categoryIcons by viewModel.categoryIcons.collectAsState()
+    val categoryStyles by viewModel.categoryStyles.collectAsState()
 
-    CompositionLocalProvider(LocalCategoryIcons provides categoryIcons) {
+    CompositionLocalProvider(LocalCategoryStyles provides categoryStyles) {
         Scaffold(
             topBar = { AppTopBar() },
             bottomBar = { AppBottomBar(selected = tab, onSelect = { tab = it }) }

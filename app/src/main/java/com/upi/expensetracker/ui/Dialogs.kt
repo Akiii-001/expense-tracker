@@ -120,6 +120,7 @@ fun AddTransactionSheet(
     customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
     onSetCategoryIcon: (String, String) -> Unit,
+    onSetCategoryColor: (String, String) -> Unit,
     onAdd: (Double, String, String, String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -201,13 +202,11 @@ fun AddTransactionSheet(
     }
 
     if (showIconPicker && category.isNotBlank()) {
-        IconPickerDialog(
+        CategoryStyleDialog(
             category = category,
             onDismiss = { showIconPicker = false },
-            onPick = { key ->
-                onSetCategoryIcon(category, key)
-                showIconPicker = false
-            }
+            onPickIcon = { key -> onSetCategoryIcon(category, key) },
+            onPickColor = { hex -> onSetCategoryColor(category, hex) }
         )
     }
 }
@@ -220,7 +219,8 @@ fun EditTransactionSheet(
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit,
     onDelete: () -> Unit,
-    onSetCategoryIcon: (String, String) -> Unit
+    onSetCategoryIcon: (String, String) -> Unit,
+    onSetCategoryColor: (String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isCredit = transaction.type == TxnType.CREDIT
@@ -288,13 +288,11 @@ fun EditTransactionSheet(
     }
 
     if (showIconPicker) {
-        IconPickerDialog(
+        CategoryStyleDialog(
             category = category,
             onDismiss = { showIconPicker = false },
-            onPick = { key ->
-                onSetCategoryIcon(category, key)
-                showIconPicker = false
-            }
+            onPickIcon = { key -> onSetCategoryIcon(category, key) },
+            onPickColor = { hex -> onSetCategoryColor(category, hex) }
         )
     }
 }
@@ -352,36 +350,55 @@ internal fun CategoryIconButton(category: String, onClick: () -> Unit) {
     }
 }
 
-/** Grid of selectable icons from the icon pack. */
+/** Color swatches + icon grid to customize a category's look. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun IconPickerDialog(
+internal fun CategoryStyleDialog(
     category: String,
     onDismiss: () -> Unit,
-    onPick: (String) -> Unit
+    onPickIcon: (String) -> Unit,
+    onPickColor: (String) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Icon for $category") },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        title = { Text("Style for $category") },
         text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                modifier = Modifier.heightIn(max = 360.dp)
-            ) {
-                items(IconPack.keys, key = { it }) { key ->
-                    val vector = IconPack.icon(key)
-                    if (vector != null) {
+            Column {
+                Text("Color", style = MaterialTheme.typography.labelLarge)
+                FlowRow(modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)) {
+                    Palette.colors.forEach { hex ->
+                        val c = Palette.parse(hex) ?: MaterialTheme.colorScheme.primary
                         Box(
                             modifier = Modifier
-                                .padding(6.dp)
-                                .size(48.dp)
+                                .padding(4.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onPick(key) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(vector, contentDescription = key, modifier = Modifier.size(24.dp))
+                                .background(c)
+                                .clickable { onPickColor(hex) }
+                        )
+                    }
+                }
+                Text("Icon", style = MaterialTheme.typography.labelLarge)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(5),
+                    modifier = Modifier.heightIn(max = 240.dp).padding(top = 4.dp)
+                ) {
+                    items(IconPack.keys, key = { it }) { key ->
+                        val vector = IconPack.icon(key)
+                        if (vector != null) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { onPickIcon(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(vector, contentDescription = key, modifier = Modifier.size(24.dp))
+                            }
                         }
                     }
                 }
