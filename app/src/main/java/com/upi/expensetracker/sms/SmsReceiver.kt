@@ -35,12 +35,17 @@ class SmsReceiver : BroadcastReceiver() {
 
                     val category = resolveCategory(dao, txn.payee, txn.type)
 
+                    // Suggest the note used last time for the same payee + amount
+                    // (e.g. "Tea"). It's a prefill the user can edit.
+                    val suggestedNote = dao.lastNoteForPayeeAmount(txn.payee, txn.amount) ?: ""
+
                     val id = dao.insert(
                         Transaction(
                             amount = txn.amount,
                             payee = txn.payee,
                             type = txn.type,
                             category = category,
+                            note = suggestedNote,
                             timestamp = System.currentTimeMillis(),
                             sender = sender
                         )

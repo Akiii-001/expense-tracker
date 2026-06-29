@@ -74,6 +74,12 @@ interface TransactionDao {
     )
     suspend fun lastCategoryForPayee(payee: String): String?
 
+    @Query(
+        "SELECT note FROM transactions WHERE payee = :payee AND ABS(amount - :amount) < 0.005 " +
+            "AND note != '' ORDER BY timestamp DESC LIMIT 1"
+    )
+    suspend fun lastNoteForPayeeAmount(payee: String, amount: Double): String?
+
     // How many DIFFERENT categories this payee has ever had. If this is > 1,
     // the payee is inconsistent and we should NOT auto-guess its category.
     @Query(

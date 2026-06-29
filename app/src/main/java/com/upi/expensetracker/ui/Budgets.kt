@@ -22,7 +22,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -134,6 +136,10 @@ fun BudgetsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             onSave = { amount ->
                 viewModel.setBudget(cat, amount)
                 editing = null
+            },
+            onRemove = {
+                viewModel.setBudget(cat, 0.0)
+                editing = null
             }
         )
     }
@@ -223,7 +229,8 @@ private fun BudgetDialog(
     month: String,
     current: Double,
     onDismiss: () -> Unit,
-    onSave: (Double) -> Unit
+    onSave: (Double) -> Unit,
+    onRemove: () -> Unit
 ) {
     var text by remember { mutableStateOf(if (current > 0) amountText(current) else "") }
 
@@ -237,7 +244,7 @@ private fun BudgetDialog(
         text = {
             Column {
                 Text(
-                    "Target for $category in $month. Set to 0 to remove it.",
+                    "Target for $category in $month.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -250,6 +257,17 @@ private fun BudgetDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (current > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onRemove,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Remove from budgets")
+                    }
+                }
             }
         }
     )
