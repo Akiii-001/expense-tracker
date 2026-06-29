@@ -14,6 +14,7 @@ import com.upi.expensetracker.data.MonthlySetting
 import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 import com.upi.expensetracker.notify.Notifications
+import com.upi.expensetracker.util.Backup
 import com.upi.expensetracker.util.Exporter
 import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -250,6 +251,39 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
             Exporter.writePdf(getApplication(), label, income, spend, txns)
         } else {
             Exporter.writeCsv(getApplication(), label, txns)
+        }
+    }
+
+    /** Serialize the whole database to a JSON string for backup. */
+    suspend fun buildBackupJson(): String {
+        return Backup.toJson(
+            Backup.Data(
+                transactions = dao.allTransactions(),
+                customCategories = dao.allCustomCategories(),
+                settings = dao.allSettings(),
+                budgets = dao.allBudgets(),
+                categoryIcons = dao.allCategoryIcons()
+            )
+        )
+    }
+
+    /** Replace all data with the contents of a backup JSON. Returns true on success. */
+    suspend fun restoreBackupJson(json: String): Boolean {
+        return try {
+            val data = Backup.fromJson(json)
+            dao.clearTransactions()
+            dao.clearCustomCategories()
+            dao.clearSettings()
+            dao.clearBudgets()
+            dao.clearCategoryIcons()
+            data.transactions.forEach { dao.insert(it.copy(id = 0)) }
+            data.customCategories.forEach { dao.insertCustomCategory(it) }
+            data.settings.forEach { dao.setMonthlySetting(it) }
+            data.budgets.forEach { dao.setBudget(it) }
+            data.categoryIcons.forEach { dao.setCategoryStyle(it) }
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 

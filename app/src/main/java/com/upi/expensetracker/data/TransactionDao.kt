@@ -124,6 +124,38 @@ interface TransactionDao {
     @Query("SELECT amount FROM budgets WHERE monthKey = :monthKey AND category = :category")
     suspend fun budgetFor(monthKey: String, category: String): Double?
 
+    // Backup / restore -----------------------------------------------------
+
+    @Query("SELECT * FROM transactions")
+    suspend fun allTransactions(): List<Transaction>
+
+    @Query("SELECT * FROM custom_categories")
+    suspend fun allCustomCategories(): List<CustomCategory>
+
+    @Query("SELECT * FROM monthly_settings")
+    suspend fun allSettings(): List<MonthlySetting>
+
+    @Query("SELECT * FROM budgets")
+    suspend fun allBudgets(): List<Budget>
+
+    @Query("SELECT * FROM category_icons")
+    suspend fun allCategoryIcons(): List<CategoryIcon>
+
+    @Query("DELETE FROM transactions")
+    suspend fun clearTransactions()
+
+    @Query("DELETE FROM custom_categories")
+    suspend fun clearCustomCategories()
+
+    @Query("DELETE FROM monthly_settings")
+    suspend fun clearSettings()
+
+    @Query("DELETE FROM budgets")
+    suspend fun clearBudgets()
+
+    @Query("DELETE FROM category_icons")
+    suspend fun clearCategoryIcons()
+
     // Category icons -------------------------------------------------------
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

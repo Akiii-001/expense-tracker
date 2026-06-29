@@ -1,6 +1,7 @@
 package com.upi.expensetracker.ui
 
 import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -185,10 +189,45 @@ private fun SpendingCard(data: ReportData) {
             if (data.byCategory.isEmpty()) {
                 Text("No spends this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
+                val slices = data.byCategory.map { row ->
+                    row.total.toFloat() to categoryStyleFor(row.category).color
+                }
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                    DonutChart(slices = slices, modifier = Modifier.size(170.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Spent", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(money(data.spend), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 data.byCategory.forEach { row ->
                     CategoryRow(row, data.spend, data.budgets[row.category])
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DonutChart(slices: List<Pair<Float, Color>>, modifier: Modifier = Modifier) {
+    val total = slices.sumOf { it.first.toDouble() }.toFloat()
+    Canvas(modifier = modifier) {
+        val stroke = size.minDimension * 0.16f
+        val inset = stroke / 2f
+        val arcSize = Size(size.width - stroke, size.height - stroke)
+        var startAngle = -90f
+        slices.forEach { (value, color) ->
+            val sweep = if (total > 0f) value / total * 360f else 0f
+            drawArc(
+                color = color,
+                startAngle = startAngle,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = arcSize,
+                style = Stroke(width = stroke)
+            )
+            startAngle += sweep
         }
     }
 }

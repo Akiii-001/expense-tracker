@@ -21,18 +21,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -60,9 +65,14 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppTopBar() {
+fun AppTopBar(onSettings: () -> Unit) {
     TopAppBar(
         title = { Text("My Money", fontWeight = FontWeight.Bold) },
+        actions = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onBackground
@@ -114,6 +124,7 @@ fun HomeScreen(
     var editing by remember { mutableStateOf<Transaction?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var showOpening by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
 
     LaunchedEffect(focusTransactionId, transactions) {
         if (focusTransactionId > 0 && editing == null) {
@@ -121,6 +132,17 @@ fun HomeScreen(
                 editing = it
                 onFocusConsumed()
             }
+        }
+    }
+
+    val filtered = remember(transactions, query) {
+        if (query.isBlank()) transactions
+        else transactions.filter { t ->
+            val q = query.trim().lowercase()
+            t.payee.lowercase().contains(q) ||
+                t.note.lowercase().contains(q) ||
+                t.category.lowercase().contains(q) ||
+                amountText(t.amount).contains(q)
         }
     }
 
@@ -137,19 +159,37 @@ fun HomeScreen(
                     weekSpend = weekSpend,
                     onEditOpening = { showOpening = true }
                 )
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Clear",
+                                modifier = Modifier.clickable { query = "" }
+                            )
+                        }
+                    },
+                    placeholder = { Text("Search payee, note, category, amount") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
                 Text(
-                    "Recent activity",
+                    if (query.isBlank()) "Recent activity" else "Results (${filtered.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(4.dp))
             }
 
-            if (transactions.isEmpty()) {
-                item { EmptyState() }
+            if (filtered.isEmpty()) {
+                item { if (query.isBlank()) EmptyState() else NoResults() }
             } else {
-                items(transactions, key = { it.id }) { txn ->
+                items(filtered, key = { it.id }) { txn ->
                     TransactionRow(txn) { editing = txn }
                 }
             }
@@ -310,6 +350,23 @@ private fun EmptyState() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, start = 24.dp, end = 24.dp)
         )
+    }
+}
+
+@Composable
+private fun NoResults() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Filled.Search,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("No matching transactions", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
