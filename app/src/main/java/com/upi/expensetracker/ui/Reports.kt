@@ -31,6 +31,7 @@ import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -52,9 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.upi.expensetracker.data.CategoryTotal
 import com.upi.expensetracker.ui.theme.IncomeGreen
 import com.upi.expensetracker.ui.theme.SpendRed
@@ -159,11 +158,16 @@ private fun SummaryCard(data: ReportData) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Pill("Received", money(data.income), IncomeGreen, Modifier.weight(1f))
-                Pill("Spent", money(data.spend), SpendRed, Modifier.weight(1f))
-                Pill("Balance", money(data.opening + data.income - data.spend), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-            }
+            SummaryRow("Received", money(data.income), IncomeGreen, bold = false)
+            Spacer(Modifier.height(10.dp))
+            SummaryRow("Spent", money(data.spend), SpendRed, bold = false)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+            SummaryRow(
+                "Balance",
+                money(data.opening + data.income - data.spend),
+                MaterialTheme.colorScheme.primary,
+                bold = true
+            )
             if (data.opening != 0.0) {
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -173,6 +177,26 @@ private fun SummaryCard(data: ReportData) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String, accent: Color, bold: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            value,
+            style = if (bold) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            color = accent,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
@@ -228,30 +252,6 @@ private fun DonutChart(slices: List<Pair<Float, Color>>, modifier: Modifier = Mo
                 style = Stroke(width = stroke)
             )
             startAngle += sweep
-        }
-    }
-}
-
-@Composable
-private fun Pill(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(accent.copy(alpha = 0.12f))
-            .padding(vertical = 10.dp, horizontal = 6.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                value,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = accent,
-                maxLines = 1,
-                softWrap = false,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
