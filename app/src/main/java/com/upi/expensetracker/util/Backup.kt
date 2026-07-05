@@ -37,6 +37,7 @@ object Backup {
                         .put("timestamp", t.timestamp)
                         .put("sender", t.sender)
                         .put("receiptPath", t.receiptPath ?: JSONObject.NULL)
+                        .put("receiptText", t.receiptText ?: JSONObject.NULL)
                 )
             }
         })
@@ -85,7 +86,8 @@ object Backup {
                 note = it.optString("note", ""),
                 timestamp = it.getLong("timestamp"),
                 sender = it.optString("sender", ""),
-                receiptPath = if (it.isNull("receiptPath")) null else it.optString("receiptPath").ifBlank { null }
+                receiptPath = if (it.isNull("receiptPath")) null else it.optString("receiptPath").ifBlank { null },
+                receiptText = if (it.isNull("receiptText")) null else it.optString("receiptText").ifBlank { null }
             )
         }
         val customCategories = root.optJSONArray("customCategories").mapObjects {

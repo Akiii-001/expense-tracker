@@ -20,8 +20,10 @@ data class Transaction(
     // Raw sender id (e.g. "AX-HDFCBK"). Kept only to help debugging/parsing,
     // never the full message body.
     val sender: String = "",
-    // Absolute path to an attached receipt image in the app's private storage.
-    val receiptPath: String? = null
+    // Absolute path to an attached receipt image (legacy; text is preferred).
+    val receiptPath: String? = null,
+    // Text extracted from a scanned receipt (small, searchable, migratable).
+    val receiptText: String? = null
 )
 
 object TxnType {

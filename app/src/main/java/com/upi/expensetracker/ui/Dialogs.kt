@@ -3,7 +3,6 @@ package com.upi.expensetracker.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -58,13 +56,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.text.KeyboardOptions
+import com.upi.expensetracker.util.ReceiptOcr
 import com.upi.expensetracker.util.ReceiptStore
 import java.io.File
 import java.text.SimpleDateFormat
@@ -151,7 +147,7 @@ fun AddTransactionSheet(
     var type by remember { mutableStateOf(TxnType.DEBIT) }
     var showIconPicker by remember { mutableStateOf(false) }
     var dateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    var receiptPath by remember { mutableStateOf<String?>(null) }
+    var receiptText by remember { mutableStateOf("") }
 
     val options = categoriesFor(type, customCategories)
     var category by remember { mutableStateOf(options.first()) }
@@ -216,17 +212,15 @@ fun AddTransactionSheet(
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
-            ReceiptSection(
-                currentPath = receiptPath,
-                onCaptured = { receiptPath = it },
-                onRemoved = { ReceiptStore.delete(receiptPath); receiptPath = null }
-            )
+            ReceiptSection(currentText = receiptText, onText = { receiptText = it })
 
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
                     val value = amount.toDoubleOrNull()
-                    if (value != null && value > 0) onAdd(value, payee, note, type, category, dateMillis, receiptPath)
+                    if (value != null && value > 0) {
+                        onAdd(value, payee, note, type, category, dateMillis, receiptText.ifBlank { null })
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Add transaction") }
@@ -257,7 +251,7 @@ fun EditTransactionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isCredit = transaction.type == TxnType.CREDIT
     var note by remember { mutableStateOf(transaction.note) }
-    var receiptPath by remember { mutableStateOf(transaction.receiptPath) }
+    var receiptText by remember { mutableStateOf(transaction.receiptText ?: "") }
     var showIconPicker by remember { mutableStateOf(false) }
     val options = categoriesFor(transaction.type, customCategories)
     var category by remember {
@@ -303,15 +297,11 @@ fun EditTransactionSheet(
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
-            ReceiptSection(
-                currentPath = receiptPath,
-                onCaptured = { receiptPath = it },
-                onRemoved = { ReceiptStore.delete(receiptPath); receiptPath = null }
-            )
+            ReceiptSection(currentText = receiptText, onText = { receiptText = it })
 
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { onSave(category, note, receiptPath) },
+                onClick = { onSave(category, note, receiptText.ifBlank { null }) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
             Spacer(Modifier.height(4.dp))
@@ -447,86 +437,92 @@ internal fun CategoryStyleDialog(
     )
 }
 
-/** Attach / view / remove a receipt image for a transaction. */
+/** Scan a receipt, extract its text with on-device OCR, and store/edit that text. */
 @Composable
 internal fun ReceiptSection(
-    currentPath: String?,
-    onCaptured: (String) -> Unit,
-    onRemoved: () -> Unit
+    currentText: String?,
+    onText: (String) -> Unit
 ) {
     val context = LocalContext.current
+    var text by remember { mutableStateOf(currentText ?: "") }
+    var scanning by remember { mutableStateOf(false) }
     var pendingFile by remember { mutableStateOf<File?>(null) }
-    var showFull by remember { mutableStateOf(false) }
+
+    fun runOcr(uri: android.net.Uri, cleanup: (() -> Unit)?) {
+        scanning = true
+        ReceiptOcr.recognize(context, uri) { result ->
+            scanning = false
+            cleanup?.invoke()
+            if (result != null) {
+                text = if (text.isBlank()) result else text + "\n" + result
+                onText(text)
+            }
+        }
+    }
 
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val f = pendingFile
-        if (ok && f != null) onCaptured(f.absolutePath) else f?.delete()
+        if (ok && f != null) {
+            runOcr(ReceiptStore.uriFor(context, f)) { ReceiptStore.delete(f) }
+        } else {
+            ReceiptStore.delete(f)
+        }
         pendingFile = null
     }
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) ReceiptStore.copyFrom(context, uri)?.let(onCaptured)
+        if (uri != null) runOcr(uri, null)
     }
 
-    Text("Receipt", style = MaterialTheme.typography.labelLarge)
+    Text("Receipt details", style = MaterialTheme.typography.labelLarge)
     Spacer(Modifier.height(4.dp))
-    if (currentPath != null) {
-        val bmp = remember(currentPath) { ReceiptStore.load(currentPath, 900) }
-        if (bmp != null) {
-            Image(
-                bitmap = bmp.asImageBitmap(),
-                contentDescription = "Receipt",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { showFull = true }
-            )
-        } else {
-            Text(
-                "Receipt image unavailable.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Row {
-            TextButton(onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text("Replace") }
-            TextButton(
-                onClick = onRemoved,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) { Text("Remove") }
-        }
-        if (showFull && bmp != null) {
-            Dialog(onDismissRequest = { showFull = false }) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    } else {
-        Row {
-            OutlinedButton(onClick = {
-                val f = ReceiptStore.newFile(context)
+    Row {
+        OutlinedButton(
+            onClick = {
+                val f = ReceiptStore.tempCaptureFile(context)
                 pendingFile = f
                 takePicture.launch(ReceiptStore.uriFor(context, f))
-            }) {
-                Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Scan")
-            }
+            },
+            enabled = !scanning
+        ) {
+            Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) {
-                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Gallery")
-            }
+            Text("Scan")
+        }
+        Spacer(Modifier.width(8.dp))
+        OutlinedButton(
+            onClick = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            enabled = !scanning
+        ) {
+            Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Gallery")
+        }
+    }
+    if (scanning) {
+        Text(
+            "Reading receipt\u2026",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it; onText(it) },
+        label = { Text("Extracted text (editable)") },
+        minLines = 3,
+        maxLines = 10,
+        modifier = Modifier.fillMaxWidth()
+    )
+    if (text.isNotBlank()) {
+        TextButton(
+            onClick = { text = ""; onText("") },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) {
+            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Clear receipt text")
         }
     }
 }

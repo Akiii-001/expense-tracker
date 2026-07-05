@@ -210,11 +210,11 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
         transaction: Transaction,
         category: String,
         note: String,
-        receiptPath: String?
+        receiptText: String?
     ) {
         viewModelScope.launch {
             rememberCustomCategory(category, transaction.type)
-            dao.update(transaction.copy(category = category, note = note, receiptPath = receiptPath))
+            dao.update(transaction.copy(category = category, note = note, receiptText = receiptText))
             checkBudget(category, transaction.type)
         }
     }
@@ -226,7 +226,7 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
         type: String,
         category: String,
         timestamp: Long,
-        receiptPath: String?
+        receiptText: String?
     ) {
         viewModelScope.launch {
             rememberCustomCategory(category, type)
@@ -238,7 +238,7 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
                     type = type,
                     category = category,
                     timestamp = timestamp,
-                    receiptPath = receiptPath
+                    receiptText = receiptText
                 )
             )
             checkBudget(category, type)

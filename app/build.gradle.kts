@@ -71,6 +71,9 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.biometric:biometric:1.1.0")
 
+    // On-device OCR for receipts (bundled model, works fully offline).
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")

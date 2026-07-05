@@ -142,6 +142,7 @@ fun HomeScreen(
             t.payee.lowercase().contains(q) ||
                 t.note.lowercase().contains(q) ||
                 t.category.lowercase().contains(q) ||
+                (t.receiptText?.lowercase()?.contains(q) == true) ||
                 amountText(t.amount).contains(q)
         }
     }
@@ -208,8 +209,8 @@ fun HomeScreen(
             transaction = txn,
             customCategories = customCategories,
             onDismiss = { editing = null },
-            onSave = { category, note, receiptPath ->
-                viewModel.updateTransaction(txn, category, note, receiptPath)
+            onSave = { category, note, receiptText ->
+                viewModel.updateTransaction(txn, category, note, receiptText)
                 editing = null
             },
             onDelete = {
@@ -227,8 +228,8 @@ fun HomeScreen(
             onDismiss = { showAdd = false },
             onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) },
             onSetCategoryColor = { cat, hex -> viewModel.setCategoryColor(cat, hex) },
-            onAdd = { amount, payee, note, type, category, timestamp, receiptPath ->
-                viewModel.addManual(amount, payee, note, type, category, timestamp, receiptPath)
+            onAdd = { amount, payee, note, type, category, timestamp, receiptText ->
+                viewModel.addManual(amount, payee, note, type, category, timestamp, receiptText)
                 showAdd = false
             }
         )
@@ -410,7 +411,7 @@ private fun TransactionRow(txn: Transaction, onClick: () -> Unit) {
                 )
             }
             Spacer(Modifier.width(8.dp))
-            if (!txn.receiptPath.isNullOrBlank()) {
+            if (!txn.receiptText.isNullOrBlank()) {
                 Icon(
                     Icons.Filled.ReceiptLong,
                     contentDescription = "Has receipt",
