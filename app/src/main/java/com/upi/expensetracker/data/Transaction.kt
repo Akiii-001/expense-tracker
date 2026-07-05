@@ -19,7 +19,9 @@ data class Transaction(
     val timestamp: Long,
     // Raw sender id (e.g. "AX-HDFCBK"). Kept only to help debugging/parsing,
     // never the full message body.
-    val sender: String = ""
+    val sender: String = "",
+    // Absolute path to an attached receipt image in the app's private storage.
+    val receiptPath: String? = null
 )
 
 object TxnType {

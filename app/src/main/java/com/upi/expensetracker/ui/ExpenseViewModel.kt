@@ -206,15 +206,28 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
 
     // -------- Mutations --------
 
-    fun updateTransaction(transaction: Transaction, category: String, note: String) {
+    fun updateTransaction(
+        transaction: Transaction,
+        category: String,
+        note: String,
+        receiptPath: String?
+    ) {
         viewModelScope.launch {
             rememberCustomCategory(category, transaction.type)
-            dao.update(transaction.copy(category = category, note = note))
+            dao.update(transaction.copy(category = category, note = note, receiptPath = receiptPath))
             checkBudget(category, transaction.type)
         }
     }
 
-    fun addManual(amount: Double, payee: String, note: String, type: String, category: String) {
+    fun addManual(
+        amount: Double,
+        payee: String,
+        note: String,
+        type: String,
+        category: String,
+        timestamp: Long,
+        receiptPath: String?
+    ) {
         viewModelScope.launch {
             rememberCustomCategory(category, type)
             dao.insert(
@@ -224,7 +237,8 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
                     note = note,
                     type = type,
                     category = category,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = timestamp,
+                    receiptPath = receiptPath
                 )
             )
             checkBudget(category, type)

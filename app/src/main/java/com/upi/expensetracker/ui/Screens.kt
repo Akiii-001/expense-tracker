@@ -208,8 +208,8 @@ fun HomeScreen(
             transaction = txn,
             customCategories = customCategories,
             onDismiss = { editing = null },
-            onSave = { category, note ->
-                viewModel.updateTransaction(txn, category, note)
+            onSave = { category, note, receiptPath ->
+                viewModel.updateTransaction(txn, category, note, receiptPath)
                 editing = null
             },
             onDelete = {
@@ -227,8 +227,8 @@ fun HomeScreen(
             onDismiss = { showAdd = false },
             onSetCategoryIcon = { cat, key -> viewModel.setCategoryIcon(cat, key) },
             onSetCategoryColor = { cat, hex -> viewModel.setCategoryColor(cat, hex) },
-            onAdd = { amount, payee, note, type, category ->
-                viewModel.addManual(amount, payee, note, type, category)
+            onAdd = { amount, payee, note, type, category, timestamp, receiptPath ->
+                viewModel.addManual(amount, payee, note, type, category, timestamp, receiptPath)
                 showAdd = false
             }
         )
@@ -410,6 +410,15 @@ private fun TransactionRow(txn: Transaction, onClick: () -> Unit) {
                 )
             }
             Spacer(Modifier.width(8.dp))
+            if (!txn.receiptPath.isNullOrBlank()) {
+                Icon(
+                    Icons.Filled.ReceiptLong,
+                    contentDescription = "Has receipt",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
             Text(
                 (if (isCredit) "+" else "-") + money(txn.amount),
                 fontWeight = FontWeight.Bold,

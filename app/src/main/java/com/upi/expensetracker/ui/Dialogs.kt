@@ -1,5 +1,9 @@
 package com.upi.expensetracker.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -19,24 +23,32 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,9 +58,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.text.KeyboardOptions
+import com.upi.expensetracker.util.ReceiptStore
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.ui.unit.dp
 import com.upi.expensetracker.data.Categories
 import com.upi.expensetracker.data.CustomCategory
@@ -121,7 +142,7 @@ fun AddTransactionSheet(
     onDismiss: () -> Unit,
     onSetCategoryIcon: (String, String) -> Unit,
     onSetCategoryColor: (String, String) -> Unit,
-    onAdd: (Double, String, String, String, String) -> Unit
+    onAdd: (Double, String, String, String, String, Long, String?) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amount by remember { mutableStateOf("") }
@@ -129,6 +150,8 @@ fun AddTransactionSheet(
     var note by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TxnType.DEBIT) }
     var showIconPicker by remember { mutableStateOf(false) }
+    var dateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var receiptPath by remember { mutableStateOf<String?>(null) }
 
     val options = categoriesFor(type, customCategories)
     var category by remember { mutableStateOf(options.first()) }
@@ -166,6 +189,8 @@ fun AddTransactionSheet(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
+            DateField(dateMillis = dateMillis, onPick = { dateMillis = it })
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -191,10 +216,17 @@ fun AddTransactionSheet(
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
+            ReceiptSection(
+                currentPath = receiptPath,
+                onCaptured = { receiptPath = it },
+                onRemoved = { ReceiptStore.delete(receiptPath); receiptPath = null }
+            )
+
+            Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
                     val value = amount.toDoubleOrNull()
-                    if (value != null && value > 0) onAdd(value, payee, note, type, category)
+                    if (value != null && value > 0) onAdd(value, payee, note, type, category, dateMillis, receiptPath)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Add transaction") }
@@ -217,7 +249,7 @@ fun EditTransactionSheet(
     transaction: Transaction,
     customCategories: List<CustomCategory>,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit,
+    onSave: (String, String, String?) -> Unit,
     onDelete: () -> Unit,
     onSetCategoryIcon: (String, String) -> Unit,
     onSetCategoryColor: (String, String) -> Unit
@@ -225,6 +257,7 @@ fun EditTransactionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isCredit = transaction.type == TxnType.CREDIT
     var note by remember { mutableStateOf(transaction.note) }
+    var receiptPath by remember { mutableStateOf(transaction.receiptPath) }
     var showIconPicker by remember { mutableStateOf(false) }
     val options = categoriesFor(transaction.type, customCategories)
     var category by remember {
@@ -270,8 +303,15 @@ fun EditTransactionSheet(
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
+            ReceiptSection(
+                currentPath = receiptPath,
+                onCaptured = { receiptPath = it },
+                onRemoved = { ReceiptStore.delete(receiptPath); receiptPath = null }
+            )
+
+            Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { onSave(category, note) },
+                onClick = { onSave(category, note, receiptPath) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
             Spacer(Modifier.height(4.dp))
@@ -405,4 +445,115 @@ internal fun CategoryStyleDialog(
             }
         }
     )
+}
+
+/** Attach / view / remove a receipt image for a transaction. */
+@Composable
+internal fun ReceiptSection(
+    currentPath: String?,
+    onCaptured: (String) -> Unit,
+    onRemoved: () -> Unit
+) {
+    val context = LocalContext.current
+    var pendingFile by remember { mutableStateOf<File?>(null) }
+    var showFull by remember { mutableStateOf(false) }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val f = pendingFile
+        if (ok && f != null) onCaptured(f.absolutePath) else f?.delete()
+        pendingFile = null
+    }
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) ReceiptStore.copyFrom(context, uri)?.let(onCaptured)
+    }
+
+    Text("Receipt", style = MaterialTheme.typography.labelLarge)
+    Spacer(Modifier.height(4.dp))
+    if (currentPath != null) {
+        val bmp = remember(currentPath) { ReceiptStore.load(currentPath, 900) }
+        if (bmp != null) {
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = "Receipt",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showFull = true }
+            )
+        } else {
+            Text(
+                "Receipt image unavailable.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row {
+            TextButton(onClick = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) { Text("Replace") }
+            TextButton(
+                onClick = onRemoved,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) { Text("Remove") }
+        }
+        if (showFull && bmp != null) {
+            Dialog(onDismissRequest = { showFull = false }) {
+                Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    } else {
+        Row {
+            OutlinedButton(onClick = {
+                val f = ReceiptStore.newFile(context)
+                pendingFile = f
+                takePicture.launch(ReceiptStore.uriFor(context, f))
+            }) {
+                Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Scan")
+            }
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(onClick = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) {
+                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Gallery")
+            }
+        }
+    }
+}
+
+/** Button that shows the chosen date and opens a date picker. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DateField(dateMillis: Long, onPick: (Long) -> Unit) {
+    var show by remember { mutableStateOf(false) }
+    val fmt = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+
+    OutlinedButton(onClick = { show = true }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Date: ${fmt.format(Date(dateMillis))}")
+    }
+    if (show) {
+        val state = rememberDatePickerState(initialSelectedDateMillis = dateMillis)
+        DatePickerDialog(
+            onDismissRequest = { show = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { onPick(it + 12L * 60 * 60 * 1000) }
+                    show = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { show = false }) { Text("Cancel") } }
+        ) { DatePicker(state = state) }
+    }
 }
