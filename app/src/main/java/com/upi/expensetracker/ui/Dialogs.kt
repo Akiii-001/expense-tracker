@@ -212,7 +212,11 @@ fun AddTransactionSheet(
             CategoryChips(options = options, selected = category, onSelect = { category = it })
 
             Spacer(Modifier.height(16.dp))
-            ReceiptSection(currentText = receiptText, onText = { receiptText = it })
+            ReceiptSection(
+                currentText = receiptText,
+                onText = { receiptText = it },
+                onAmountDetected = { detected -> if (amount.isBlank()) amount = amountText(detected) }
+            )
 
             Spacer(Modifier.height(16.dp))
             Button(
@@ -441,7 +445,8 @@ internal fun CategoryStyleDialog(
 @Composable
 internal fun ReceiptSection(
     currentText: String?,
-    onText: (String) -> Unit
+    onText: (String) -> Unit,
+    onAmountDetected: (Double) -> Unit = {}
 ) {
     val context = LocalContext.current
     var text by remember { mutableStateOf(currentText ?: "") }
@@ -450,12 +455,13 @@ internal fun ReceiptSection(
 
     fun runOcr(uri: android.net.Uri, cleanup: (() -> Unit)?) {
         scanning = true
-        ReceiptOcr.recognize(context, uri) { result ->
+        ReceiptOcr.recognize(context, uri) { info ->
             scanning = false
             cleanup?.invoke()
-            if (result != null) {
-                text = if (text.isBlank()) result else text + "\n" + result
+            if (info != null) {
+                text = if (text.isBlank()) info.summary else text + "\n" + info.summary
                 onText(text)
+                info.amount?.let { onAmountDetected(it) }
             }
         }
     }

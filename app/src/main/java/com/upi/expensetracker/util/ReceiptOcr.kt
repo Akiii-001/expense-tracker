@@ -11,12 +11,15 @@ object ReceiptOcr {
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    /** Extracts text from the image at [uri]; calls [onResult] with the text (or null on failure). */
-    fun recognize(context: Context, uri: Uri, onResult: (String?) -> Unit) {
+    /**
+     * Extracts a cleaned summary (and detected amount) from the image at [uri];
+     * calls [onResult] with the info, or null on failure.
+     */
+    fun recognize(context: Context, uri: Uri, onResult: (ReceiptParser.Info?) -> Unit) {
         try {
             val image = InputImage.fromFilePath(context, uri)
             recognizer.process(image)
-                .addOnSuccessListener { result -> onResult(result.text.ifBlank { null }) }
+                .addOnSuccessListener { result -> onResult(ReceiptParser.summarize(result)) }
                 .addOnFailureListener { onResult(null) }
         } catch (e: Exception) {
             onResult(null)
