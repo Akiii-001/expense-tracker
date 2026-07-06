@@ -42,10 +42,14 @@ object ReceiptParser {
         "Tata Cliq", "FirstCry", "Croma", "Reliance", "JioMart", "Dunzo"
     )
 
-    private val labelWords = listOf(
+    // Lines containing any of these are never treated as the product name.
+    private val itemStopWords = listOf(
         "order", "total", "amount", "delivery", "payment", "shipping",
         "discount", "mrp", "track", "estimated", "date", "method", "details",
-        "updated", "revised", "initial", "number", "charges"
+        "updated", "revised", "initial", "number", "charges",
+        // status / noise words
+        "shipped", "delivered", "cancelled", "pending", "arriving", "dispatch",
+        "return", "refund", "free", "paid", "out for", "expected"
     )
 
     fun summarize(vt: Text): Info {
@@ -123,15 +127,22 @@ object ReceiptParser {
         return brands.firstOrNull { joined.contains(it, ignoreCase = true) }
     }
 
-    /** Best-guess product name: a short Title-Case line with no digits/labels. */
+    /**
+     * Best-guess product name: a short Title-Case line with no digits/labels.
+     * Products sit near the price (lower on screen), so among valid candidates
+     * we pick the lowest one, avoiding header/status text like "GA Shipped".
+     */
     private fun extractItem(lines: List<Ln>): String? {
-        return lines.map { it.text }.firstOrNull { t ->
+        val candidates = lines.filter { l ->
+            val t = l.text
             val words = t.split(Regex("\\s+")).filter { it.isNotBlank() }
-            words.size in 2..6 &&
+            words.size in 2..7 &&
                 t.none { it.isDigit() } &&
                 !t.contains(':') &&
                 words.all { w -> !w.first().isLetter() || w.first().isUpperCase() } &&
-                labelWords.none { lw -> t.contains(lw, ignoreCase = true) }
+                words.any { it.length >= 3 } &&
+                itemStopWords.none { sw -> t.contains(sw, ignoreCase = true) }
         }
+        return candidates.maxByOrNull { it.cy }?.text
     }
 }
