@@ -16,7 +16,6 @@ import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 import com.upi.expensetracker.notify.Notifications
 import com.upi.expensetracker.util.Backup
-import com.upi.expensetracker.util.BalanceStore
 import com.upi.expensetracker.util.Exporter
 import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -281,18 +280,10 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     val sips = dao.observeSips()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<Sip>())
 
-    val balance = MutableStateFlow(BalanceStore.get(getApplication()))
-    val balanceUpdatedAt = MutableStateFlow(BalanceStore.updatedAt(getApplication()))
-
-    fun refreshBalance() {
-        balance.value = BalanceStore.get(getApplication())
-        balanceUpdatedAt.value = BalanceStore.updatedAt(getApplication())
-    }
-
-    fun setBalance(value: Double) {
-        BalanceStore.set(getApplication(), value)
-        refreshBalance()
-    }
+    /** Same figure as the Activity "Balance this month" card. */
+    val appBalance = combine(openingBalance, monthIncome, monthSpend) { opening, income, spend ->
+        opening + income - spend
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     fun addSip(name: String, amount: Double, dayOfMonth: Int) {
         viewModelScope.launch {
@@ -335,7 +326,8 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
                 customCategories = dao.allCustomCategories(),
                 settings = dao.allSettings(),
                 budgets = dao.allBudgets(),
-                categoryIcons = dao.allCategoryIcons()
+                categoryIcons = dao.allCategoryIcons(),
+                sips = dao.allSips()
             )
         )
     }
@@ -349,11 +341,13 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
             dao.clearSettings()
             dao.clearBudgets()
             dao.clearCategoryIcons()
+            dao.clearSips()
             data.transactions.forEach { dao.insert(it.copy(id = 0)) }
             data.customCategories.forEach { dao.insertCustomCategory(it) }
             data.settings.forEach { dao.setMonthlySetting(it) }
             data.budgets.forEach { dao.setBudget(it) }
             data.categoryIcons.forEach { dao.setCategoryStyle(it) }
+            data.sips.forEach { dao.insertSip(it.copy(id = 0)) }
             true
         } catch (e: Exception) {
             false

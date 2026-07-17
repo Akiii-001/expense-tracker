@@ -4,6 +4,7 @@ import com.upi.expensetracker.data.Budget
 import com.upi.expensetracker.data.CategoryIcon
 import com.upi.expensetracker.data.CustomCategory
 import com.upi.expensetracker.data.MonthlySetting
+import com.upi.expensetracker.data.Sip
 import com.upi.expensetracker.data.Transaction
 import org.json.JSONArray
 import org.json.JSONObject
@@ -18,7 +19,8 @@ object Backup {
         val customCategories: List<CustomCategory>,
         val settings: List<MonthlySetting>,
         val budgets: List<Budget>,
-        val categoryIcons: List<CategoryIcon>
+        val categoryIcons: List<CategoryIcon>,
+        val sips: List<Sip>
     )
 
     fun toJson(data: Data): String {
@@ -71,6 +73,19 @@ object Backup {
             }
         })
 
+        root.put("sips", JSONArray().apply {
+            data.sips.forEach { s ->
+                put(
+                    JSONObject()
+                        .put("name", s.name)
+                        .put("amount", s.amount)
+                        .put("dayOfMonth", s.dayOfMonth)
+                        .put("lastPaidMonth", s.lastPaidMonth ?: JSONObject.NULL)
+                        .put("active", s.active)
+                )
+            }
+        })
+
         return root.toString()
     }
 
@@ -106,8 +121,17 @@ object Backup {
                 colorHex = if (it.isNull("colorHex")) null else it.optString("colorHex")
             )
         }
+        val sips = root.optJSONArray("sips").mapObjects {
+            Sip(
+                name = it.getString("name"),
+                amount = it.getDouble("amount"),
+                dayOfMonth = it.getInt("dayOfMonth"),
+                lastPaidMonth = if (it.isNull("lastPaidMonth")) null else it.optString("lastPaidMonth").ifBlank { null },
+                active = it.optBoolean("active", true)
+            )
+        }
 
-        return Data(transactions, customCategories, settings, budgets, categoryIcons)
+        return Data(transactions, customCategories, settings, budgets, categoryIcons, sips)
     }
 
     private fun <T> JSONArray?.mapObjects(transform: (JSONObject) -> T): List<T> {

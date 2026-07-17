@@ -5,7 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.upi.expensetracker.data.AppDatabase
 import com.upi.expensetracker.notify.Notifications
-import com.upi.expensetracker.util.BalanceStore
+import com.upi.expensetracker.util.BalanceCalculator
 import com.upi.expensetracker.util.TimeRanges
 import java.util.Calendar
 import kotlin.math.min
@@ -19,8 +19,8 @@ class SipCheckWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     override suspend fun doWork(): Result {
         val ctx = applicationContext
-        val balance = BalanceStore.get(ctx) ?: return Result.success() // unknown balance -> can't judge
         val dao = AppDatabase.get(ctx).transactionDao()
+        val balance = BalanceCalculator.currentBalance(dao)
         val monthKey = TimeRanges.currentMonthKey()
 
         val upcoming = dao.activeSips().filter { sip ->

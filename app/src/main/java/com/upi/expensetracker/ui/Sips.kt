@@ -48,14 +48,11 @@ import com.upi.expensetracker.util.TimeRanges
 @Composable
 fun SipsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val sips by viewModel.sips.collectAsState()
-    val balance by viewModel.balance.collectAsState()
+    val balance by viewModel.appBalance.collectAsState()
     val monthKey = remember { TimeRanges.currentMonthKey() }
-
-    LaunchedEffect(Unit) { viewModel.refreshBalance() }
 
     var editing by remember { mutableStateOf<Sip?>(null) }
     var adding by remember { mutableStateOf(false) }
-    var editingBalance by remember { mutableStateOf(false) }
 
     val monthlyTotal = sips.filter { it.active }.sumOf { it.amount }
 
@@ -64,11 +61,7 @@ fun SipsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         contentPadding = PaddingValues(16.dp)
     ) {
         item {
-            BalanceCardSip(
-                balance = balance,
-                monthlyTotal = monthlyTotal,
-                onEdit = { editingBalance = true }
-            )
+            BalanceCardSip(balance = balance, monthlyTotal = monthlyTotal)
             Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -125,21 +118,11 @@ fun SipsScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         )
     }
 
-    if (editingBalance) {
-        BalanceDialog(
-            current = balance,
-            onDismiss = { editingBalance = false },
-            onSave = { value ->
-                viewModel.setBalance(value)
-                editingBalance = false
-            }
-        )
-    }
 }
 
 @Composable
-private fun BalanceCardSip(balance: Double?, monthlyTotal: Double, onEdit: () -> Unit) {
-    val insufficient = balance != null && balance < monthlyTotal
+private fun BalanceCardSip(balance: Double, monthlyTotal: Double) {
+    val insufficient = balance < monthlyTotal
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -147,12 +130,12 @@ private fun BalanceCardSip(balance: Double?, monthlyTotal: Double, onEdit: () ->
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                "Known account balance",
+                "Balance this month",
                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.labelLarge
             )
             Text(
-                if (balance != null) money(balance) else "Not set",
+                money(balance),
                 color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
@@ -172,8 +155,12 @@ private fun BalanceCardSip(balance: Double?, monthlyTotal: Double, onEdit: () ->
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onEdit) { Text("Update balance") }
+            Text(
+                "Sourced from your Activity balance. Adjust via opening balance there.",
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
@@ -296,34 +283,4 @@ private fun SipDialog(
     )
 }
 
-@Composable
-private fun BalanceDialog(current: Double?, onDismiss: () -> Unit, onSave: (Double) -> Unit) {
-    var text by remember { mutableStateOf(current?.let { amountText(it) } ?: "") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { text.toDoubleOrNull()?.let(onSave) }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Update balance") },
-        text = {
-            Column {
-                Text(
-                    "Set your current bank balance. It also updates automatically from " +
-                        "bank SMS that include an available balance.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = sanitizeAmount(it) },
-                    label = { Text("Balance (\u20B9)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    )
-}
+

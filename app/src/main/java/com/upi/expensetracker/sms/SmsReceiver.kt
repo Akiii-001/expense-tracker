@@ -33,11 +33,6 @@ class SmsReceiver : BroadcastReceiver() {
                     val body = parts.joinToString("") { it.messageBody ?: "" }
                     val txn = SmsParser.parse(body) ?: continue
 
-                    // Update the latest known balance if the SMS includes it.
-                    txn.availableBalance?.let {
-                        com.upi.expensetracker.util.BalanceStore.set(context, it)
-                    }
-
                     val category = resolveCategory(dao, txn.payee, txn.type)
 
                     // Suggest the note used last time for the same payee + amount

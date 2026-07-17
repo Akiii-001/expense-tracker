@@ -186,4 +186,7 @@ interface TransactionDao {
 
     @Query("SELECT * FROM sips")
     suspend fun allSips(): List<Sip>
+
+    @Query("DELETE FROM sips")
+    suspend fun clearSips()
 }
