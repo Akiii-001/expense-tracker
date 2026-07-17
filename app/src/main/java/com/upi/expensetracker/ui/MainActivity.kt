@@ -35,7 +35,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.upi.expensetracker.ui.theme.AppTheme
+import com.upi.expensetracker.work.SipCheckWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : FragmentActivity() {
 
@@ -56,6 +61,8 @@ class MainActivity : FragmentActivity() {
         prefs = getSharedPreferences("settings", MODE_PRIVATE)
         lockEnabled = prefs.getBoolean(KEY_LOCK, false)
         unlocked = !lockEnabled
+
+        scheduleSipCheck()
 
         val focusTxnId = intent.getLongExtra(EXTRA_TXN_ID, -1L)
 
@@ -117,6 +124,12 @@ class MainActivity : FragmentActivity() {
             // If the device can't show the prompt for any reason, fail open.
             unlocked = true
         }
+    }
+
+    private fun scheduleSipCheck() {
+        val work = PeriodicWorkRequestBuilder<SipCheckWorker>(1, TimeUnit.DAYS).build()
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork("sip_check", ExistingPeriodicWorkPolicy.KEEP, work)
     }
 
     private fun requestPermissions() {
@@ -201,7 +214,11 @@ fun AppRoot(
                         viewModel = viewModel,
                         modifier = Modifier.padding(padding)
                     )
-                    else -> BudgetsScreen(
+                    2 -> BudgetsScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.padding(padding)
+                    )
+                    else -> SipsScreen(
                         viewModel = viewModel,
                         modifier = Modifier.padding(padding)
                     )

@@ -28,6 +28,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    suspend fun getTransaction(id: Long): Transaction?
+
     @Query(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
             "WHERE timestamp >= :since AND type = :type"
@@ -163,4 +166,24 @@ interface TransactionDao {
 
     @Query("SELECT * FROM category_icons")
     fun observeCategoryIcons(): Flow<List<CategoryIcon>>
+
+    // SIPs -----------------------------------------------------------------
+
+    @Insert
+    suspend fun insertSip(sip: Sip): Long
+
+    @Update
+    suspend fun updateSip(sip: Sip)
+
+    @Delete
+    suspend fun deleteSip(sip: Sip)
+
+    @Query("SELECT * FROM sips ORDER BY dayOfMonth")
+    fun observeSips(): Flow<List<Sip>>
+
+    @Query("SELECT * FROM sips WHERE active = 1")
+    suspend fun activeSips(): List<Sip>
+
+    @Query("SELECT * FROM sips")
+    suspend fun allSips(): List<Sip>
 }

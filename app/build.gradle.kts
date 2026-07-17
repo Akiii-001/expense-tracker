@@ -74,6 +74,9 @@ dependencies {
     // On-device OCR for receipts (bundled model, works fully offline).
     implementation("com.google.mlkit:text-recognition:16.0.1")
 
+    // Background daily check for upcoming SIPs vs balance.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")

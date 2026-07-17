@@ -11,10 +11,12 @@ import com.upi.expensetracker.data.CategoryIcon
 import com.upi.expensetracker.data.CategoryTotal
 import com.upi.expensetracker.data.CustomCategory
 import com.upi.expensetracker.data.MonthlySetting
+import com.upi.expensetracker.data.Sip
 import com.upi.expensetracker.data.Transaction
 import com.upi.expensetracker.data.TxnType
 import com.upi.expensetracker.notify.Notifications
 import com.upi.expensetracker.util.Backup
+import com.upi.expensetracker.util.BalanceStore
 import com.upi.expensetracker.util.Exporter
 import com.upi.expensetracker.util.TimeRanges
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -216,6 +218,10 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
             rememberCustomCategory(category, transaction.type)
             dao.update(transaction.copy(category = category, note = note, receiptText = receiptText))
             checkBudget(category, transaction.type)
+            if (isSipLabel(category, note)) {
+                autoMatchSip(transaction.id, transaction.amount, transaction.timestamp)
+            }
+            Notifications.cancel(getApplication(), transaction.id.toInt())
         }
     }
 
@@ -230,7 +236,7 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         viewModelScope.launch {
             rememberCustomCategory(category, type)
-            dao.insert(
+            val id = dao.insert(
                 Transaction(
                     amount = amount,
                     payee = payee.ifBlank { if (type == TxnType.CREDIT) "Income" else "Expense" },
@@ -242,11 +248,64 @@ class ExpenseViewModel(app: Application) : AndroidViewModel(app) {
                 )
             )
             checkBudget(category, type)
+            if (isSipLabel(category, note)) autoMatchSip(id, amount, timestamp)
         }
     }
 
     fun deleteTransaction(transaction: Transaction) {
-        viewModelScope.launch { dao.delete(transaction) }
+        viewModelScope.launch {
+            dao.delete(transaction)
+            Notifications.cancel(getApplication(), transaction.id.toInt())
+        }
+    }
+
+    private fun isSipLabel(category: String, note: String): Boolean =
+        category.equals("SIP", ignoreCase = true) || note.trim().equals("SIP", ignoreCase = true)
+
+    /** Match an "SIP"-labelled debit to the scheduled SIP with the same amount and nearest date. */
+    private suspend fun autoMatchSip(txnId: Long, amount: Double, timestamp: Long) {
+        val txnDay = TimeRanges.dayOfMonth(timestamp)
+        val best = dao.allSips()
+            .filter { it.active && kotlin.math.abs(it.amount - amount) < 0.5 }
+            .minByOrNull { kotlin.math.abs(it.dayOfMonth - txnDay) }
+            ?: return
+        dao.updateSip(best.copy(lastPaidMonth = TimeRanges.monthKeyOf(timestamp)))
+        val txn = dao.getTransaction(txnId) ?: return
+        if (txn.note.isBlank() || txn.note.trim().equals("SIP", ignoreCase = true)) {
+            dao.update(txn.copy(note = best.name))
+        }
+    }
+
+    // -------- SIPs & balance --------
+
+    val sips = dao.observeSips()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<Sip>())
+
+    val balance = MutableStateFlow(BalanceStore.get(getApplication()))
+    val balanceUpdatedAt = MutableStateFlow(BalanceStore.updatedAt(getApplication()))
+
+    fun refreshBalance() {
+        balance.value = BalanceStore.get(getApplication())
+        balanceUpdatedAt.value = BalanceStore.updatedAt(getApplication())
+    }
+
+    fun setBalance(value: Double) {
+        BalanceStore.set(getApplication(), value)
+        refreshBalance()
+    }
+
+    fun addSip(name: String, amount: Double, dayOfMonth: Int) {
+        viewModelScope.launch {
+            dao.insertSip(Sip(name = name, amount = amount, dayOfMonth = dayOfMonth))
+        }
+    }
+
+    fun updateSip(sip: Sip) {
+        viewModelScope.launch { dao.updateSip(sip) }
+    }
+
+    fun deleteSip(sip: Sip) {
+        viewModelScope.launch { dao.deleteSip(sip) }
     }
 
     fun setOpeningBalance(value: Double) {

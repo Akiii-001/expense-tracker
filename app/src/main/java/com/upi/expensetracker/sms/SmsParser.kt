@@ -15,7 +15,14 @@ object SmsParser {
     data class ParsedTxn(
         val amount: Double,
         val payee: String,
-        val type: String
+        val type: String,
+        val availableBalance: Double? = null
+    )
+
+    // Available balance often included in bank SMS, e.g. "Avl bal Rs.5456.93".
+    private val balanceRegex = Regex(
+        "(?:available\\s*balance|avl\\s*bal|a/c\\s*bal|bal)\\s*[:.]?\\s*(?:rs\\.?|inr|\u20B9)?\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)",
+        RegexOption.IGNORE_CASE
     )
 
     // Money LEFT the account. NOTE: we use action words only. We deliberately
@@ -95,7 +102,12 @@ object SmsParser {
         val payee = payeeRaw?.let { cleanPayee(it) }
             ?: if (type == TxnType.CREDIT) "Unknown source" else "Unknown"
 
-        return ParsedTxn(amount = amount, payee = payee, type = type)
+        val balance = balanceRegex.find(body)
+            ?.groupValues?.get(1)
+            ?.replace(",", "")
+            ?.toDoubleOrNull()
+
+        return ParsedTxn(amount = amount, payee = payee, type = type, availableBalance = balance)
     }
 
     private fun cleanPayee(raw: String): String {

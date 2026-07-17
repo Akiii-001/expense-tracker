@@ -13,6 +13,17 @@ object TimeRanges {
         return "%04d-%02d".format(year, month)
     }
 
+    /** "yyyy-MM" for a given timestamp. */
+    fun monthKeyOf(timestamp: Long): String {
+        val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+        return "%04d-%02d".format(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1)
+    }
+
+    /** Day-of-month for a given timestamp. */
+    fun dayOfMonth(timestamp: Long): Int {
+        return Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.DAY_OF_MONTH)
+    }
+
     /** Start-of-month timestamp for a "yyyy-MM" key. */
     fun startOfMonthKey(monthKey: String): Long {
         val parts = monthKey.split("-")

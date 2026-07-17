@@ -13,6 +13,7 @@ object Notifications {
 
     private const val CHANNEL_ID = "categorize"
     private const val BUDGET_CHANNEL_ID = "budget_alerts"
+    private const val SIP_CHANNEL_ID = "sip_alerts"
 
     fun ensureChannel(context: Context) {
         val channel = NotificationChannel(
@@ -29,9 +30,17 @@ object Notifications {
         ).apply {
             description = "Warns when a category is near or over its monthly budget"
         }
+        val sipChannel = NotificationChannel(
+            SIP_CHANNEL_ID,
+            "SIP alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Warns before an SIP date if your balance may be insufficient"
+        }
         val mgr = context.getSystemService(NotificationManager::class.java)
         mgr.createNotificationChannel(channel)
         mgr.createNotificationChannel(budgetChannel)
+        mgr.createNotificationChannel(sipChannel)
     }
 
     fun showCategorizePrompt(
@@ -65,6 +74,34 @@ object Notifications {
             NotificationManagerCompat.from(context).notify(transactionId.toInt(), notification)
         } catch (_: SecurityException) {
             // Notification permission not granted; the transaction is still saved.
+        }
+    }
+
+    /** Dismiss a previously shown notification (e.g. after the user categorizes in-app). */
+    fun cancel(context: Context, id: Int) {
+        NotificationManagerCompat.from(context).cancel(id)
+    }
+
+    fun showSipAlert(context: Context, title: String, message: String) {
+        ensureChannel(context)
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            context, 90001, openIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(context, SIP_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(90001, notification)
+        } catch (_: SecurityException) {
         }
     }
 

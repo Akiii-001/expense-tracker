@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -100,6 +101,12 @@ fun AppBottomBar(selected: Int, onSelect: (Int) -> Unit) {
             onClick = { onSelect(2) },
             icon = { Icon(Icons.Filled.Savings, contentDescription = null) },
             label = { Text("Budgets") }
+        )
+        NavigationBarItem(
+            selected = selected == 3,
+            onClick = { onSelect(3) },
+            icon = { Icon(Icons.Filled.ShowChart, contentDescription = null) },
+            label = { Text("SIPs") }
         )
     }
 }
